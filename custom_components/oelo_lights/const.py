@@ -21,7 +21,35 @@ NUM_ZONES = 6
 # Pattern types
 PATTERN_TYPE_CUSTOM = "custom"
 PATTERN_TYPE_OFF = "off"
-VALID_PATTERN_TYPES = ["custom", "chase", "scroll", "bounce", "spread", "wave"]
+VALID_PATTERN_TYPES = [
+    "custom",
+    "chase",
+    "scroll",
+    "bounce",
+    "spread",
+    "wave",
+]
+
+# Motion types for patterns
+VALID_MOTIONS = [
+    "stationary",
+    "arcade",
+    "blend",
+    "bolt",
+    "chase",
+    "fade",
+    "fill",
+    "lightning",
+    "march",
+    "river",
+    "shuffle",
+    "split",
+    "sprinkle",
+    "streak",
+    "storm",
+    "takeover",
+    "twinkle",
+]
 
 # Service modes
 MODE_PRESET = "Preset"

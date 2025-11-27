@@ -1,6 +1,10 @@
 control_lights:
   name: Control Oelo Lights
   description: Control Presets or Custom patterns across specific zones.
+  target:
+    entity:
+      integration: oelo_lights
+      domain: light
   fields:
     mode:
       name: Control Mode
@@ -14,8 +18,7 @@ control_lights:
             - Custom
     target_zones:
       name: Zones
-      description: Select which zones to apply this to.
-      default: ["1"]
+      description: Select which zones to apply this to (overrides target entity zone).
       selector:
         select:
           multiple: true
@@ -32,24 +35,128 @@ control_lights:
       selector:
         select:
           options:
-            - "Solid White"
-            - "Candy Cane"
-            - "July 4th"
-            - "Christmas"
-            - "Halloween"
+            # Solid Colors
+            - "Solid Color: White"
+            - "Solid Color: Red"
+            - "Solid Color: Green"
+            - "Solid Color: Blue"
+            - "Solid Color: Yellow"
+            - "Solid Color: Orange"
+            - "Solid Color: Purple"
+            - "Solid Color: Pink"
+            - "Solid Color: Cyan"
+            - "Solid Color: Warm White"
+            # American Liberty
+            - "American Liberty: Marching with Red White and Blue"
+            - "American Liberty: Standing with Red White and Blue"
+            # Birthdays
+            - "Birthdays: Birthday Cake"
+            - "Birthdays: Birthday Confetti"
+            # Canadian Strong
+            - "Canadian Strong: O Canada"
+            # Christmas
+            - "Christmas: Candy Cane Glimmer"
+            - "Christmas: Candy Cane Lane"
+            - "Christmas: Christmas Glow"
+            - "Christmas: Christmas at Oelo"
+            - "Christmas: Decorating the Christmas Tree"
+            - "Christmas: Dreaming of a White Christmas"
+            - "Christmas: Icicle Chase"
+            - "Christmas: Icicle Shimmer"
+            - "Christmas: Icicle Stream"
+            - "Christmas: Saturnalia Christmas"
+            - "Christmas: The Grinch Stole Christmas"
+            # Cinco De Mayo
+            - "Cinco De Mayo: Furious Fiesta"
+            - "Cinco De Mayo: Mexican Spirit"
+            - "Cinco De Mayo: Salsa Line"
+            # Day of the Dead
+            - "Day of the Dead: Calaveras Dash"
+            - "Day of the Dead: Calaveras Shimmer"
+            - "Day of the Dead: Marigold Breeze"
+            - "Day of the Dead: Sugar Skull Still"
+            # Easter
+            - "Easter: Delicate Dance"
+            - "Easter: Pastel Unwind"
+            # Election Day
+            - "Election Day: A More Perfect Union"
+            - "Election Day: We The People"
+            # Fathers Day
+            - "Fathers Day: Fresh Cut Grass"
+            - "Fathers Day: Grilling Time"
+            # Fourth of July
+            - "Fourth of July: Fast Fireworks"
+            - "Fourth of July: Founders Endurance"
+            # Halloween
+            - "Halloween: Candy Corn Glow"
+            - "Halloween: Goblin Delight"
+            - "Halloween: Goblin Delight Trance"
+            - "Halloween: Halloween Dancing Bash"
+            - "Halloween: Hocus Pocus"
+            - "Halloween: Hocus Pocus Takeover"
+            - "Halloween: Pumpkin Patch"
+            # Hanukkah
+            - "Hanukkah: Eight Days Of Lights"
+            - "Hanukkah: Hanukkah Glide"
+            # Labor Day
+            - "Labor Day: Continued Progress"
+            - "Labor Day: United Strong"
+            # Memorial Day
+            - "Memorial Day: In Honor Of Service"
+            - "Memorial Day: Unity Of Service"
+            # Mothers Day
+            - "Mothers Day: Breakfast In Bed"
+            - "Mothers Day: Love For A Mother"
+            - "Mothers Day: Twinkling Memories"
+            # New Years
+            - "New Years: Golden Shine"
+            - "New Years: River of Gold"
+            - "New Years: Sliding Into the New Year"
+            - "New Years: Year of Change"
+            # Presidents Day
+            - "Presidents Day: Flight Of The President"
+            - "Presidents Day: The Presidents March"
+            # Pride
+            - "Pride: Split"
+            # Quinceanera
+            - "Quinceanera: Perfectly Pink"
+            - "Quinceanera: Twinkle Eyes"
+            - "Quinceanera: Vibrant Celebration"
+            # St. Patricks Day
+            - "St. Patricks Day: Follow The Rainbow"
+            - "St. Patricks Day: Sprinkle Of Dust"
+            # Thanksgiving
+            - "Thanksgiving: Thanksgiving Apple Pie"
+            - "Thanksgiving: Thanksgiving Turkey"
+            # Valentines
+            - "Valentines: Adorations Smile"
+            - "Valentines: Cupids Twinkle"
+            - "Valentines: My Heart Is Yours"
+            - "Valentines: Powerful Love"
     custom_pattern_type:
-      name: Movement / Pattern
+      name: Motion
       description: (Custom Mode Only) How the lights should move.
-      default: custom
+      default: stationary
       selector:
         select:
           options:
-            - custom
+            - stationary
+            - arcade
+            - blend
+            - bolt
             - chase
-            - scroll
-            - bounce
-            - spread
-            - wave
+            - fade
+            - fill
+            - lightning
+            - march
+            - river
+            - shuffle
+            - split
+            - sprinkle
+            - streak
+            - storm
+            - takeover
+            - twinkle
     colors:
       name: Custom Colors
       description: (Custom Mode Only) List of RGB colors. Up to 20 colors allowed. format [[255,0,0], [0,0,255]]
@@ -57,17 +164,17 @@ control_lights:
         object:
     speed:
       name: Speed
-      description: Speed of the effect (0-100).
+      description: Speed of the effect (0-20).
       default: 1
       selector:
         number:
           min: 0
-          max: 100
+          max: 20
     gap:
       name: Gap
-      description: Spacing between lights (0-100).
+      description: Spacing between lights (0-20).
       default: 0
       selector:
         number:
           min: 0
-          max: 100
+          max: 20

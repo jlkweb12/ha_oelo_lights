@@ -92,8 +92,8 @@ async def async_setup_entry(
             vol.Optional("preset_name"): cv.string,
             vol.Optional("custom_pattern_type", default=PATTERN_TYPE_CUSTOM): cv.string,
             vol.Optional("colors"): vol.All(cv.ensure_list, vol.Length(max=MAX_COLORS)),
-            vol.Optional("speed", default=1): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
-            vol.Optional("gap", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
+            vol.Optional("speed", default=1): vol.All(vol.Coerce(int), vol.Range(min=0, max=20)),
+            vol.Optional("gap", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=20)),
         },
         "async_control_oelo_lights",
     )
