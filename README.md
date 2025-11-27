@@ -210,3 +210,9 @@ For bugs or feature requests, please open an issue on [GitHub](https://github.co
 ## License
 
 This project is licensed under the MIT License.
+
+---
+
+## Thank you
+
+This is a fork of https://github.com/Cinegration/Oelo_Lights_HA from @Cinegration.
