@@ -1,10 +1,6 @@
 control_lights:
   name: Control Oelo Lights
   description: Control Presets or Custom patterns across specific zones.
-  target:
-    entity:
-      integration: oelo_lights
-      domain: light
   fields:
     mode:
       name: Control Mode
