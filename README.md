@@ -66,102 +66,316 @@ This service allows you to trigger built-in presets OR create complex custom pat
 
 | Parameter | Type | Required | Description |
 | :--- | :--- | :--- | :--- |
+| `target` | Entity | **Yes** | Target Oelo light entity (e.g., `light.oelo_lights_192_168_30_18_zone_1`). |
 | `mode` | Select | **Yes** | `Preset` or `Custom`. |
-| `target_zones` | List | No | Which zones to control (e.g., `["1", "2"]`). Defaults to the entity's zone. |
+| `target_zones` | List | No | Override zones to control (e.g., `["1", "2"]`). If omitted, uses the target entity's zone. |
 | `preset_name` | String | No | **(Mode: Preset)** Name of the preset (see available presets below). |
 | `colors` | List | No | **(Mode: Custom)** List of RGB colors (e.g., `[[255,0,0], [0,255,0]]`). Max 20. |
-| `custom_pattern_type` | String | No | **(Mode: Custom)** Movement type: `custom`, `chase`, `scroll`, `bounce`, `spread`, `wave`. Default: `custom`. |
-| `speed` | Number | No | Speed of effect (0-100). Default: 1. |
-| `gap` | Number | No | Spacing between lit LEDs (0-100). Default: 0. |
+| `custom_pattern_type` | String | No | **(Mode: Custom)** Motion type (see available motions below). Default: `stationary`. |
+| `speed` | Number | No | Speed of effect (0-20). Default: 1. |
+| `gap` | Number | No | Spacing between lit LEDs (0-20). Default: 0. |
+
+### Available Motions (for Custom mode)
+
+| Motion | Description |
+| :--- | :--- |
+| `stationary` | Static, no movement |
+| `arcade` | Arcade-style animation |
+| `blend` | Smooth color blending |
+| `bolt` | Lightning bolt effect |
+| `chase` | Colors chase each other |
+| `fade` | Fade in/out effect |
+| `fill` | Fill animation |
+| `lightning` | Lightning flash effect |
+| `march` | Marching colors |
+| `river` | Flowing river effect |
+| `shuffle` | Random shuffle |
+| `split` | Split from center |
+| `sprinkle` | Sprinkle effect |
+| `streak` | Streaking lights |
+| `storm` | Storm effect |
+| `takeover` | Color takeover |
+| `twinkle` | Twinkling lights |
 
 ### Available Presets
 
-| Preset Name | Description |
-| :--- | :--- |
-| `Solid White` | Static white lights |
-| `Candy Cane` | Red and white alternating |
-| `July 4th` | Red, white, and blue patriotic |
-| `Christmas` | Red and green holiday |
-| `Halloween` | Orange and purple spooky |
+<details>
+<summary><b>Solid Colors (10)</b></summary>
+
+- Solid Color: White
+- Solid Color: Red
+- Solid Color: Green
+- Solid Color: Blue
+- Solid Color: Yellow
+- Solid Color: Orange
+- Solid Color: Purple
+- Solid Color: Pink
+- Solid Color: Cyan
+- Solid Color: Warm White
+</details>
+
+<details>
+<summary><b>American Liberty (2)</b></summary>
+
+- American Liberty: Marching with Red White and Blue
+- American Liberty: Standing with Red White and Blue
+</details>
+
+<details>
+<summary><b>Birthdays (2)</b></summary>
+
+- Birthdays: Birthday Cake
+- Birthdays: Birthday Confetti
+</details>
+
+<details>
+<summary><b>Canadian Strong (1)</b></summary>
+
+- Canadian Strong: O Canada
+</details>
+
+<details>
+<summary><b>Christmas (11)</b></summary>
+
+- Christmas: Candy Cane Glimmer
+- Christmas: Candy Cane Lane
+- Christmas: Christmas Glow
+- Christmas: Christmas at Oelo
+- Christmas: Decorating the Christmas Tree
+- Christmas: Dreaming of a White Christmas
+- Christmas: Icicle Chase
+- Christmas: Icicle Shimmer
+- Christmas: Icicle Stream
+- Christmas: Saturnalia Christmas
+- Christmas: The Grinch Stole Christmas
+</details>
+
+<details>
+<summary><b>Cinco De Mayo (3)</b></summary>
+
+- Cinco De Mayo: Furious Fiesta
+- Cinco De Mayo: Mexican Spirit
+- Cinco De Mayo: Salsa Line
+</details>
+
+<details>
+<summary><b>Day of the Dead (4)</b></summary>
+
+- Day of the Dead: Calaveras Dash
+- Day of the Dead: Calaveras Shimmer
+- Day of the Dead: Marigold Breeze
+- Day of the Dead: Sugar Skull Still
+</details>
+
+<details>
+<summary><b>Easter (2)</b></summary>
+
+- Easter: Delicate Dance
+- Easter: Pastel Unwind
+</details>
+
+<details>
+<summary><b>Election Day (2)</b></summary>
+
+- Election Day: A More Perfect Union
+- Election Day: We The People
+</details>
+
+<details>
+<summary><b>Fathers Day (2)</b></summary>
+
+- Fathers Day: Fresh Cut Grass
+- Fathers Day: Grilling Time
+</details>
+
+<details>
+<summary><b>Fourth of July (2)</b></summary>
+
+- Fourth of July: Fast Fireworks
+- Fourth of July: Founders Endurance
+</details>
+
+<details>
+<summary><b>Halloween (7)</b></summary>
+
+- Halloween: Candy Corn Glow
+- Halloween: Goblin Delight
+- Halloween: Goblin Delight Trance
+- Halloween: Halloween Dancing Bash
+- Halloween: Hocus Pocus
+- Halloween: Hocus Pocus Takeover
+- Halloween: Pumpkin Patch
+</details>
+
+<details>
+<summary><b>Hanukkah (2)</b></summary>
+
+- Hanukkah: Eight Days Of Lights
+- Hanukkah: Hanukkah Glide
+</details>
+
+<details>
+<summary><b>Labor Day (2)</b></summary>
+
+- Labor Day: Continued Progress
+- Labor Day: United Strong
+</details>
+
+<details>
+<summary><b>Memorial Day (2)</b></summary>
+
+- Memorial Day: In Honor Of Service
+- Memorial Day: Unity Of Service
+</details>
+
+<details>
+<summary><b>Mothers Day (3)</b></summary>
+
+- Mothers Day: Breakfast In Bed
+- Mothers Day: Love For A Mother
+- Mothers Day: Twinkling Memories
+</details>
+
+<details>
+<summary><b>New Years (4)</b></summary>
+
+- New Years: Golden Shine
+- New Years: River of Gold
+- New Years: Sliding Into the New Year
+- New Years: Year of Change
+</details>
+
+<details>
+<summary><b>Presidents Day (2)</b></summary>
+
+- Presidents Day: Flight Of The President
+- Presidents Day: The Presidents March
+</details>
+
+<details>
+<summary><b>Pride (1)</b></summary>
+
+- Pride: Split
+</details>
+
+<details>
+<summary><b>Quinceanera (3)</b></summary>
+
+- Quinceanera: Perfectly Pink
+- Quinceanera: Twinkle Eyes
+- Quinceanera: Vibrant Celebration
+</details>
+
+<details>
+<summary><b>St. Patricks Day (2)</b></summary>
+
+- St. Patricks Day: Follow The Rainbow
+- St. Patricks Day: Sprinkle Of Dust
+</details>
+
+<details>
+<summary><b>Thanksgiving (2)</b></summary>
+
+- Thanksgiving: Thanksgiving Apple Pie
+- Thanksgiving: Thanksgiving Turkey
+</details>
+
+<details>
+<summary><b>Valentines (4)</b></summary>
+
+- Valentines: Adorations Smile
+- Valentines: Cupids Twinkle
+- Valentines: My Heart Is Yours
+- Valentines: Powerful Love
+</details>
 
 ---
 
 ## Automation Examples
 
-### 1. Trigger a Preset (Candy Cane)
-Sets Zone 1 and Zone 2 to the "Candy Cane" preset.
+### 1. Trigger a Preset (Christmas Icicle Chase)
 
 ```yaml
-action:
-  - service: oelo_lights.control_lights
-    target:
-      entity_id: light.oelo_lights_zone_1
-    data:
-      mode: "Preset"
-      preset_name: "Candy Cane"
-      target_zones:
-        - "1"
-        - "2"
+action: oelo_lights.control_lights
+target:
+  entity_id: light.oelo_lights_192_168_30_18_zone_1
+data:
+  mode: Preset
+  preset_name: "Christmas: Icicle Chase"
 ```
 
-### 2. Custom Rainbow Chase
-Create a custom rainbow chase effect across all zones.
+### 2. Custom Chase Pattern on Multiple Zones
 
 ```yaml
-action:
-  - service: oelo_lights.control_lights
-    target:
-      entity_id: light.oelo_lights_zone_1
-    data:
-      mode: "Custom"
-      custom_pattern_type: "chase"
-      colors:
-        - [255, 0, 0]      # Red
-        - [255, 127, 0]    # Orange
-        - [255, 255, 0]    # Yellow
-        - [0, 255, 0]      # Green
-        - [0, 0, 255]      # Blue
-        - [148, 0, 211]    # Violet
-      speed: 50
-      gap: 2
-      target_zones:
-        - "1"
-        - "2"
-        - "3"
-        - "4"
-        - "5"
-        - "6"
+action: oelo_lights.control_lights
+target:
+  entity_id:
+    - light.oelo_lights_192_168_30_18_zone_1
+    - light.oelo_lights_192_168_30_18_zone_2
+data:
+  mode: Custom
+  custom_pattern_type: chase
+  speed: 9
+  gap: 5
+  colors:
+    - - 255
+      - 0
+      - 0
+    - - 255
+      - 127
+      - 0
+  target_zones:
+    - "1"
+    - "2"
 ```
 
-### 3. Simple Color Control
+### 3. Custom Rainbow March
+
+```yaml
+action: oelo_lights.control_lights
+target:
+  entity_id: light.oelo_lights_192_168_30_18_zone_1
+data:
+  mode: Custom
+  custom_pattern_type: march
+  speed: 5
+  gap: 0
+  colors:
+    - [255, 0, 0]
+    - [255, 127, 0]
+    - [255, 255, 0]
+    - [0, 255, 0]
+    - [0, 0, 255]
+    - [148, 0, 211]
+```
+
+### 4. Simple Color Control
 Set a zone to solid blue using standard light service.
 
 ```yaml
-action:
-  - service: light.turn_on
-    target:
-      entity_id: light.oelo_lights_zone_1
-    data:
-      rgb_color: [0, 0, 255]
-      brightness: 200
+action: light.turn_on
+target:
+  entity_id: light.oelo_lights_192_168_30_18_zone_1
+data:
+  rgb_color: [0, 0, 255]
+  brightness: 200
 ```
 
-### 4. Turn Off All Zones
+### 5. Turn Off All Zones
 
 ```yaml
-action:
-  - service: light.turn_off
-    target:
-      entity_id:
-        - light.oelo_lights_zone_1
-        - light.oelo_lights_zone_2
-        - light.oelo_lights_zone_3
-        - light.oelo_lights_zone_4
-        - light.oelo_lights_zone_5
-        - light.oelo_lights_zone_6
+action: light.turn_off
+target:
+  entity_id:
+    - light.oelo_lights_192_168_30_18_zone_1
+    - light.oelo_lights_192_168_30_18_zone_2
+    - light.oelo_lights_192_168_30_18_zone_3
+    - light.oelo_lights_192_168_30_18_zone_4
+    - light.oelo_lights_192_168_30_18_zone_5
+    - light.oelo_lights_192_168_30_18_zone_6
 ```
 
-### 5. Scheduled Holiday Theme
+### 6. Scheduled Holiday Theme
 
 ```yaml
 automation:
@@ -170,16 +384,12 @@ automation:
       - platform: sun
         event: sunset
     action:
-      - service: oelo_lights.control_lights
+      - action: oelo_lights.control_lights
         target:
-          entity_id: light.oelo_lights_zone_1
+          entity_id: light.oelo_lights_192_168_30_18_zone_1
         data:
-          mode: "Preset"
-          preset_name: "Christmas"
-          target_zones:
-            - "1"
-            - "2"
-            - "3"
+          mode: Preset
+          preset_name: "Christmas: Candy Cane Lane"
 ```
 
 ---
