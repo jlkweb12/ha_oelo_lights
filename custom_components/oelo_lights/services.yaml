@@ -1,0 +1,77 @@
+control_lights:
+  name: Control Oelo Lights
+  description: Control Presets or Custom patterns across specific zones.
+  target:
+    entity:
+      integration: oelo_lights
+      domain: light
+  fields:
+    mode:
+      name: Control Mode
+      description: Choose "Preset" for saved effects or "Custom" to build your own.
+      required: true
+      default: Preset
+      selector:
+        select:
+          options:
+            - Preset
+            - Custom
+    target_zones:
+      name: Zones
+      description: Select which zones to apply this to.
+      default: ["1"]
+      selector:
+        select:
+          multiple: true
+          options:
+            - "1"
+            - "2"
+            - "3"
+            - "4"
+            - "5"
+            - "6"
+    preset_name:
+      name: Preset Name
+      description: (Preset Mode Only) Select the premade effect.
+      selector:
+        select:
+          options:
+            - "Solid White"
+            - "Candy Cane"
+            - "July 4th"
+            - "Christmas"
+            - "Halloween"
+    custom_pattern_type:
+      name: Movement / Pattern
+      description: (Custom Mode Only) How the lights should move.
+      default: custom
+      selector:
+        select:
+          options:
+            - custom
+            - chase
+            - scroll
+            - bounce
+            - spread
+            - wave
+    colors:
+      name: Custom Colors
+      description: (Custom Mode Only) List of RGB colors. Up to 20 colors allowed. format [[255,0,0], [0,0,255]]
+      selector:
+        object:
+    speed:
+      name: Speed
+      description: Speed of the effect (0-100).
+      default: 1
+      selector:
+        number:
+          min: 0
+          max: 100
+    gap:
+      name: Gap
+      description: Spacing between lights (0-100).
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 100

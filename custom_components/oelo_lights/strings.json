@@ -1,0 +1,59 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Oelo Lights Controller",
+        "description": "Enter the IP address of your Oelo controller.",
+        "data": {
+          "ip_address": "IP Address"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the controller.",
+      "invalid_ip": "Invalid IP address format.",
+      "invalid_response": "Controller returned an invalid response.",
+      "timeout": "Connection timed out.",
+      "unknown": "An unexpected error occurred."
+    },
+    "abort": {
+      "already_configured": "This controller is already configured."
+    }
+  },
+  "services": {
+    "control_lights": {
+      "name": "Control Oelo Lights",
+      "description": "Control presets or custom patterns across specific zones.",
+      "fields": {
+        "mode": {
+          "name": "Control Mode",
+          "description": "Choose 'Preset' for saved effects or 'Custom' to build your own."
+        },
+        "target_zones": {
+          "name": "Zones",
+          "description": "Select which zones to apply this to."
+        },
+        "preset_name": {
+          "name": "Preset Name",
+          "description": "(Preset Mode Only) Select the premade effect."
+        },
+        "custom_pattern_type": {
+          "name": "Movement / Pattern",
+          "description": "(Custom Mode Only) How the lights should move."
+        },
+        "colors": {
+          "name": "Custom Colors",
+          "description": "(Custom Mode Only) List of RGB colors. Up to 20 colors allowed. Format: [[255,0,0], [0,0,255]]"
+        },
+        "speed": {
+          "name": "Speed",
+          "description": "Speed of the effect (0-100)."
+        },
+        "gap": {
+          "name": "Gap",
+          "description": "Spacing between lights (0-100)."
+        }
+      }
+    }
+  }
+}

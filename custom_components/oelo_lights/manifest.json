@@ -1,0 +1,12 @@
+{
+  "domain": "oelo_lights",
+  "name": "Oelo Lights Controller",
+  "version": "1.0.0",
+  "codeowners": ["@jlkweb12"],
+  "config_flow": true,
+  "documentation": "https://github.com/jlkweb12/ha_oelo_lights",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "requirements": [],
+  "homeassistant": "2024.1.0"
+}
