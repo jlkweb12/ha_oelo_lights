@@ -7,7 +7,7 @@ from typing import Any
 import aiohttp
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryNotReady
 from homeassistant.const import CONF_IP_ADDRESS, Platform
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import aiohttp_client, config_validation as cv
@@ -20,6 +20,7 @@ from .const import (
     PATTERN_TYPE_CUSTOM,
     DEFAULT_TIMEOUT,
 )
+from .coordinator import OeloDataUpdateCoordinator
 from .patterns import get_preset
 
 _LOGGER = logging.getLogger(__name__)
@@ -44,6 +45,23 @@ SERVICE_SCHEMA = vol.Schema(
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Oelo Lights from a config entry."""
     hass.data.setdefault(DOMAIN, {})
+    
+    ip_address = entry.data[CONF_IP_ADDRESS]
+    session = aiohttp_client.async_get_clientsession(hass)
+    
+    # Create coordinator and test connection before forwarding to platforms
+    coordinator = OeloDataUpdateCoordinator(hass, session, ip_address)
+    try:
+        await coordinator.async_config_entry_first_refresh()
+    except Exception as err:  # noqa: BLE001
+        raise ConfigEntryNotReady(
+            f"Unable to connect to Oelo controller at {ip_address}: {err}"
+        ) from err
+    
+    # Store coordinator in hass.data for use by platforms
+    hass.data[DOMAIN][entry.entry_id] = {
+        "coordinator": coordinator,
+    }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
@@ -131,6 +149,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Only unregister service if no more entries
     if unload_ok:
+        # Clean up hass.data
+        hass.data[DOMAIN].pop(entry.entry_id, None)
+        
         # Check if there are other config entries still loaded
         remaining_entries = [
             e for e in hass.config_entries.async_entries(DOMAIN)
