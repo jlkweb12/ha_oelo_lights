@@ -53,23 +53,17 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Oelo Light entities from a config entry."""
-    ip_address = entry.data[CONF_IP_ADDRESS]
-    session = aiohttp_client.async_get_clientsession(hass)
+    # Retrieve coordinator from hass.data (created and validated in __init__.py)
+    coordinator: OeloDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
 
-    coordinator = OeloDataUpdateCoordinator(hass, session, ip_address)
-    await coordinator.async_config_entry_first_refresh()
-
-    hass.data.setdefault(DOMAIN, {})
-
+    # Set up storage for entity data
     storage_key = f"{STORAGE_KEY_BASE}_{entry.entry_id}"
     store: Store[dict[str, Any]] = Store(hass, STORAGE_VERSION, storage_key)
     stored_data = await store.async_load() or {}
 
-    hass.data[DOMAIN][entry.entry_id] = {
-        "coordinator": coordinator,
-        "store": store,
-        "stored_entity_data": stored_data,
-    }
+    # Store store and stored_entity_data in hass.data
+    hass.data[DOMAIN][entry.entry_id]["store"] = store
+    hass.data[DOMAIN][entry.entry_id]["stored_entity_data"] = stored_data
 
     entities = [
         OeloLight(
