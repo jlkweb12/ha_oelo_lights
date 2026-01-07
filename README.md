@@ -1,7 +1,7 @@
 # Oelo Lights Home Assistant Integration
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
-[![version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/jlkweb12/ha_oelo_lights)
+[![version](https://img.shields.io/badge/version-1.1.0-blue)](https://github.com/jlkweb12/ha_oelo_lights)
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/jlkweb12/ha_oelo_lights/graphs/commit-activity)
 
 A robust Home Assistant integration for **Oelo Permanent Holiday Lights**. This custom component allows for local control of your Oelo lighting system, supporting multi-zone control, premade pattern presets, and highly customizable user-defined patterns.
