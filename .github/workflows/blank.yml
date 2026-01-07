@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  # Job 1: Validate the Home Assistant manifest and structure
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Runs the official Home Assistant validation tool
+      - name: Home Assistant Analysis
+        uses: home-assistant/actions/hassfest@master
+
+  # Job 2: Lint the code (Ensures Python style is clean)
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check for Python syntax errors
+        uses: LizardByte/python-check-action@v1
+        with:
+          # This ensures the code is readable and follows Python standards
+          directory: ./custom_components/
