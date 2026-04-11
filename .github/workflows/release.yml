@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify manifest version matches tag
+        run: |
+          manifest_version=$(jq -r .version custom_components/oelo_lights/manifest.json)
+          if [ "$manifest_version" != "${{ steps.version.outputs.version }}" ]; then
+            echo "::error::manifest.json version ($manifest_version) does not match tag (${{ steps.version.outputs.version }})"
+            exit 1
+          fi
+
+      - name: Create integration zip
+        run: |
+          cd custom_components/oelo_lights
+          zip -r ../../oelo_lights.zip .
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: oelo_lights.zip
+          generate_release_notes: true

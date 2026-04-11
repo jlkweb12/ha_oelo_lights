@@ -8,24 +8,32 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Job 1: Validate the Home Assistant manifest and structure
-  validate:
+  validate-hassfest:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      # Runs the official Home Assistant validation tool
-      - name: Home Assistant Analysis
+      - name: Home Assistant hassfest validation
         uses: home-assistant/actions/hassfest@master
 
-  # Job 2: Lint the code (Ensures Python style is clean)
+  validate-hacs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: HACS validation
+        uses: hacs/action@main
+        with:
+          category: integration
+
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Check for Python syntax errors
-        uses: LizardByte/python-check-action@v1
+      - uses: actions/setup-python@v5
         with:
-          # This ensures the code is readable and follows Python standards
-          directory: ./custom_components/
+          python-version: "3.12"
+      - name: Install ruff
+        run: pip install ruff
+      - name: Ruff check
+        run: ruff check custom_components/
+      - name: Ruff format check
+        run: ruff format --check custom_components/
