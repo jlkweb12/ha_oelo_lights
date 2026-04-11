@@ -1,4 +1,5 @@
 """Data update coordinator for Oelo Lights integration."""
+
 from __future__ import annotations
 
 import asyncio
@@ -6,7 +7,6 @@ import logging
 from typing import Any
 
 import aiohttp
-
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -18,9 +18,7 @@ _LOGGER = logging.getLogger(__name__)
 class OeloDataUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
     """Coordinator to manage fetching Oelo controller data."""
 
-    def __init__(
-        self, hass: HomeAssistant, session: aiohttp.ClientSession, ip: str
-    ) -> None:
+    def __init__(self, hass: HomeAssistant, session: aiohttp.ClientSession, ip: str) -> None:
         """Initialize the coordinator."""
         super().__init__(
             hass,
@@ -42,7 +40,7 @@ class OeloDataUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
                     if not isinstance(data, list):
                         raise UpdateFailed("Controller did not return a list")
                     return data
-        except asyncio.TimeoutError as err:
+        except TimeoutError as err:
             raise UpdateFailed("Timeout communicating with Oelo controller") from err
         except aiohttp.ClientError as err:
             raise UpdateFailed(f"Error communicating with Oelo controller: {err}") from err

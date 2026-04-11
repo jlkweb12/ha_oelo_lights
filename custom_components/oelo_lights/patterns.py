@@ -1,9 +1,11 @@
 """Preset pattern definitions for Oelo Lights."""
+
 from typing import NamedTuple
 
 
 class PatternConfig(NamedTuple):
     """Configuration for a preset pattern."""
+
     pattern_type: str
     colors: list[tuple[int, int, int]]
     speed: int = 0
@@ -67,29 +69,82 @@ PRESET_PATTERNS: dict[str, PatternConfig] = {
     # American Liberty
     "American Liberty: Marching with Red White and Blue": PatternConfig(
         pattern_type="march",
-        colors=[(255, 255, 255), (0, 0, 255), (0, 0, 255), (255, 255, 255), (255, 0, 0), (255, 0, 0)],
+        colors=[
+            (255, 255, 255),
+            (0, 0, 255),
+            (0, 0, 255),
+            (255, 255, 255),
+            (255, 0, 0),
+            (255, 0, 0),
+        ],
         speed=1,
     ),
     "American Liberty: Standing with Red White and Blue": PatternConfig(
         pattern_type="stationary",
-        colors=[(255, 255, 255), (0, 0, 255), (0, 0, 255), (255, 255, 255), (255, 0, 0), (255, 0, 0)],
+        colors=[
+            (255, 255, 255),
+            (0, 0, 255),
+            (0, 0, 255),
+            (255, 255, 255),
+            (255, 0, 0),
+            (255, 0, 0),
+        ],
         speed=10,
     ),
     # Birthdays
     "Birthdays: Birthday Cake": PatternConfig(
         pattern_type="stationary",
-        colors=[(255, 0, 0), (255, 255, 255), (255, 92, 0), (255, 255, 255), (255, 184, 0), (255, 255, 255), (97, 255, 0), (255, 255, 255), (0, 10, 255), (255, 255, 255), (189, 0, 255), (255, 255, 255), (255, 0, 199), (255, 255, 255)],
+        colors=[
+            (255, 0, 0),
+            (255, 255, 255),
+            (255, 92, 0),
+            (255, 255, 255),
+            (255, 184, 0),
+            (255, 255, 255),
+            (97, 255, 0),
+            (255, 255, 255),
+            (0, 10, 255),
+            (255, 255, 255),
+            (189, 0, 255),
+            (255, 255, 255),
+            (255, 0, 199),
+            (255, 255, 255),
+        ],
         speed=20,
     ),
     "Birthdays: Birthday Confetti": PatternConfig(
         pattern_type="river",
-        colors=[(255, 0, 0), (255, 255, 255), (255, 92, 0), (255, 255, 255), (255, 184, 0), (255, 255, 255), (97, 255, 0), (255, 255, 255), (0, 10, 255), (255, 255, 255), (189, 0, 255), (255, 255, 255), (255, 0, 199), (255, 255, 255)],
+        colors=[
+            (255, 0, 0),
+            (255, 255, 255),
+            (255, 92, 0),
+            (255, 255, 255),
+            (255, 184, 0),
+            (255, 255, 255),
+            (97, 255, 0),
+            (255, 255, 255),
+            (0, 10, 255),
+            (255, 255, 255),
+            (189, 0, 255),
+            (255, 255, 255),
+            (255, 0, 199),
+            (255, 255, 255),
+        ],
         speed=20,
     ),
     # Canadian Strong
     "Canadian Strong: O Canada": PatternConfig(
         pattern_type="stationary",
-        colors=[(237, 252, 255), (237, 252, 255), (237, 252, 255), (255, 0, 0), (255, 0, 0), (255, 255, 255), (255, 0, 0), (255, 0, 0)],
+        colors=[
+            (237, 252, 255),
+            (237, 252, 255),
+            (237, 252, 255),
+            (255, 0, 0),
+            (255, 0, 0),
+            (255, 255, 255),
+            (255, 0, 0),
+            (255, 0, 0),
+        ],
         speed=20,
     ),
     # Christmas
@@ -100,17 +155,39 @@ PRESET_PATTERNS: dict[str, PatternConfig] = {
     ),
     "Christmas: Candy Cane Lane": PatternConfig(
         pattern_type="stationary",
-        colors=[(255, 255, 255), (255, 255, 255), (255, 255, 255), (255, 0, 0), (255, 0, 0), (255, 0, 0)],
+        colors=[
+            (255, 255, 255),
+            (255, 255, 255),
+            (255, 255, 255),
+            (255, 0, 0),
+            (255, 0, 0),
+            (255, 0, 0),
+        ],
         speed=4,
     ),
     "Christmas: Christmas Glow": PatternConfig(
         pattern_type="stationary",
-        colors=[(255, 255, 255), (255, 255, 255), (255, 255, 255), (255, 153, 0), (255, 153, 0), (255, 153, 0)],
+        colors=[
+            (255, 255, 255),
+            (255, 255, 255),
+            (255, 255, 255),
+            (255, 153, 0),
+            (255, 153, 0),
+            (255, 153, 0),
+        ],
         speed=2,
     ),
     "Christmas: Christmas at Oelo": PatternConfig(
         pattern_type="stationary",
-        colors=[(26, 213, 255), (26, 213, 255), (26, 213, 255), (26, 213, 255), (26, 213, 255), (255, 34, 0), (255, 34, 0)],
+        colors=[
+            (26, 213, 255),
+            (26, 213, 255),
+            (26, 213, 255),
+            (26, 213, 255),
+            (26, 213, 255),
+            (255, 34, 0),
+            (255, 34, 0),
+        ],
         speed=2,
     ),
     "Christmas: Decorating the Christmas Tree": PatternConfig(
@@ -140,28 +217,77 @@ PRESET_PATTERNS: dict[str, PatternConfig] = {
     ),
     "Christmas: Saturnalia Christmas": PatternConfig(
         pattern_type="stationary",
-        colors=[(255, 255, 255), (255, 255, 255), (255, 255, 255), (0, 255, 47), (0, 255, 47), (0, 255, 47), (255, 0, 0), (255, 0, 0), (255, 0, 0)],
+        colors=[
+            (255, 255, 255),
+            (255, 255, 255),
+            (255, 255, 255),
+            (0, 255, 47),
+            (0, 255, 47),
+            (0, 255, 47),
+            (255, 0, 0),
+            (255, 0, 0),
+            (255, 0, 0),
+        ],
         speed=2,
     ),
     "Christmas: The Grinch Stole Christmas": PatternConfig(
         pattern_type="twinkle",
-        colors=[(15, 255, 0), (15, 255, 0), (15, 255, 0), (15, 255, 0), (255, 0, 0), (255, 0, 0), (255, 255, 255), (255, 255, 255)],
+        colors=[
+            (15, 255, 0),
+            (15, 255, 0),
+            (15, 255, 0),
+            (15, 255, 0),
+            (255, 0, 0),
+            (255, 0, 0),
+            (255, 255, 255),
+            (255, 255, 255),
+        ],
         speed=2,
     ),
     # Cinco De Mayo
     "Cinco De Mayo: Furious Fiesta": PatternConfig(
         pattern_type="twinkle",
-        colors=[(255, 0, 0), (255, 0, 0), (255, 0, 0), (255, 255, 255), (255, 255, 255), (255, 255, 255), (0, 255, 0), (0, 255, 0), (0, 255, 0)],
+        colors=[
+            (255, 0, 0),
+            (255, 0, 0),
+            (255, 0, 0),
+            (255, 255, 255),
+            (255, 255, 255),
+            (255, 255, 255),
+            (0, 255, 0),
+            (0, 255, 0),
+            (0, 255, 0),
+        ],
         speed=10,
     ),
     "Cinco De Mayo: Mexican Spirit": PatternConfig(
         pattern_type="stationary",
-        colors=[(255, 0, 0), (255, 0, 0), (255, 0, 0), (255, 255, 255), (255, 255, 255), (255, 255, 255), (0, 255, 0), (0, 255, 0), (0, 255, 0)],
+        colors=[
+            (255, 0, 0),
+            (255, 0, 0),
+            (255, 0, 0),
+            (255, 255, 255),
+            (255, 255, 255),
+            (255, 255, 255),
+            (0, 255, 0),
+            (0, 255, 0),
+            (0, 255, 0),
+        ],
         speed=1,
     ),
     "Cinco De Mayo: Salsa Line": PatternConfig(
         pattern_type="march",
-        colors=[(255, 0, 0), (255, 0, 0), (255, 0, 0), (255, 255, 255), (255, 255, 255), (255, 255, 255), (0, 255, 0), (0, 255, 0), (0, 255, 0)],
+        colors=[
+            (255, 0, 0),
+            (255, 0, 0),
+            (255, 0, 0),
+            (255, 255, 255),
+            (255, 255, 255),
+            (255, 255, 255),
+            (0, 255, 0),
+            (0, 255, 0),
+            (0, 255, 0),
+        ],
         speed=5,
     ),
     # Day of the Dead
@@ -182,29 +308,79 @@ PRESET_PATTERNS: dict[str, PatternConfig] = {
     ),
     "Day of the Dead: Sugar Skull Still": PatternConfig(
         pattern_type="stationary",
-        colors=[(255, 255, 255), (255, 255, 255), (225, 0, 250), (255, 255, 255), (255, 255, 255), (5, 180, 255), (255, 255, 255), (255, 255, 255), (255, 142, 0)],
+        colors=[
+            (255, 255, 255),
+            (255, 255, 255),
+            (225, 0, 250),
+            (255, 255, 255),
+            (255, 255, 255),
+            (5, 180, 255),
+            (255, 255, 255),
+            (255, 255, 255),
+            (255, 142, 0),
+        ],
         speed=1,
     ),
     # Easter
     "Easter: Delicate Dance": PatternConfig(
         pattern_type="march",
-        colors=[(213, 50, 255), (213, 50, 255), (213, 50, 255), (50, 255, 184), (50, 255, 184), (50, 255, 184), (255, 149, 50), (255, 149, 50), (255, 149, 50)],
+        colors=[
+            (213, 50, 255),
+            (213, 50, 255),
+            (213, 50, 255),
+            (50, 255, 184),
+            (50, 255, 184),
+            (50, 255, 184),
+            (255, 149, 50),
+            (255, 149, 50),
+            (255, 149, 50),
+        ],
         speed=1,
     ),
     "Easter: Pastel Unwind": PatternConfig(
         pattern_type="stationary",
-        colors=[(144, 50, 255), (144, 50, 255), (144, 50, 255), (213, 50, 255), (213, 50, 255), (213, 50, 255), (80, 205, 255), (80, 205, 255), (80, 205, 255)],
+        colors=[
+            (144, 50, 255),
+            (144, 50, 255),
+            (144, 50, 255),
+            (213, 50, 255),
+            (213, 50, 255),
+            (213, 50, 255),
+            (80, 205, 255),
+            (80, 205, 255),
+            (80, 205, 255),
+        ],
         speed=1,
     ),
     # Election Day
     "Election Day: A More Perfect Union": PatternConfig(
         pattern_type="split",
-        colors=[(255, 0, 0), (255, 0, 0), (255, 0, 0), (0, 4, 255), (0, 39, 255), (0, 39, 255), (255, 255, 255), (255, 255, 255), (255, 255, 255)],
+        colors=[
+            (255, 0, 0),
+            (255, 0, 0),
+            (255, 0, 0),
+            (0, 4, 255),
+            (0, 39, 255),
+            (0, 39, 255),
+            (255, 255, 255),
+            (255, 255, 255),
+            (255, 255, 255),
+        ],
         speed=1,
     ),
     "Election Day: We The People": PatternConfig(
         pattern_type="march",
-        colors=[(255, 0, 0), (255, 0, 0), (255, 0, 0), (0, 0, 255), (0, 0, 255), (0, 0, 255), (255, 255, 255), (255, 255, 255), (255, 255, 255)],
+        colors=[
+            (255, 0, 0),
+            (255, 0, 0),
+            (255, 0, 0),
+            (0, 0, 255),
+            (0, 0, 255),
+            (0, 0, 255),
+            (255, 255, 255),
+            (255, 255, 255),
+            (255, 255, 255),
+        ],
         speed=1,
     ),
     # Fathers Day
@@ -216,13 +392,27 @@ PRESET_PATTERNS: dict[str, PatternConfig] = {
     ),
     "Fathers Day: Grilling Time": PatternConfig(
         pattern_type="takeover",
-        colors=[(0, 0, 255), (0, 0, 255), (0, 0, 255), (255, 255, 255), (255, 255, 255), (255, 255, 255)],
+        colors=[
+            (0, 0, 255),
+            (0, 0, 255),
+            (0, 0, 255),
+            (255, 255, 255),
+            (255, 255, 255),
+            (255, 255, 255),
+        ],
         speed=1,
     ),
     # Fourth of July
     "Fourth of July: Fast Fireworks": PatternConfig(
         pattern_type="twinkle",
-        colors=[(255, 255, 255), (0, 0, 255), (0, 0, 255), (255, 255, 255), (255, 0, 0), (255, 0, 0)],
+        colors=[
+            (255, 255, 255),
+            (0, 0, 255),
+            (0, 0, 255),
+            (255, 255, 255),
+            (255, 0, 0),
+            (255, 0, 0),
+        ],
         speed=10,
     ),
     "Fourth of July: Founders Endurance": PatternConfig(
@@ -233,17 +423,38 @@ PRESET_PATTERNS: dict[str, PatternConfig] = {
     # Halloween
     "Halloween: Candy Corn Glow": PatternConfig(
         pattern_type="march",
-        colors=[(255, 215, 0), (255, 155, 0), (255, 64, 0), (255, 54, 0), (255, 74, 0), (255, 255, 255)],
+        colors=[
+            (255, 215, 0),
+            (255, 155, 0),
+            (255, 64, 0),
+            (255, 54, 0),
+            (255, 74, 0),
+            (255, 255, 255),
+        ],
         speed=3,
     ),
     "Halloween: Goblin Delight": PatternConfig(
         pattern_type="takeover",
-        colors=[(176, 0, 255), (176, 0, 255), (176, 0, 255), (53, 255, 0), (53, 255, 0), (53, 255, 0)],
+        colors=[
+            (176, 0, 255),
+            (176, 0, 255),
+            (176, 0, 255),
+            (53, 255, 0),
+            (53, 255, 0),
+            (53, 255, 0),
+        ],
         speed=1,
     ),
     "Halloween: Goblin Delight Trance": PatternConfig(
         pattern_type="streak",
-        colors=[(176, 0, 255), (176, 0, 255), (176, 0, 255), (53, 255, 0), (53, 255, 0), (53, 255, 0)],
+        colors=[
+            (176, 0, 255),
+            (176, 0, 255),
+            (176, 0, 255),
+            (53, 255, 0),
+            (53, 255, 0),
+            (53, 255, 0),
+        ],
         speed=3,
     ),
     "Halloween: Halloween Dancing Bash": PatternConfig(
@@ -253,12 +464,26 @@ PRESET_PATTERNS: dict[str, PatternConfig] = {
     ),
     "Halloween: Hocus Pocus": PatternConfig(
         pattern_type="stationary",
-        colors=[(176, 0, 255), (176, 0, 255), (176, 0, 255), (255, 85, 0), (255, 85, 0), (255, 85, 0)],
+        colors=[
+            (176, 0, 255),
+            (176, 0, 255),
+            (176, 0, 255),
+            (255, 85, 0),
+            (255, 85, 0),
+            (255, 85, 0),
+        ],
         speed=3,
     ),
     "Halloween: Hocus Pocus Takeover": PatternConfig(
         pattern_type="takeover",
-        colors=[(176, 0, 255), (176, 0, 255), (176, 0, 255), (255, 85, 0), (255, 85, 0), (255, 85, 0)],
+        colors=[
+            (176, 0, 255),
+            (176, 0, 255),
+            (176, 0, 255),
+            (255, 85, 0),
+            (255, 85, 0),
+            (255, 85, 0),
+        ],
         speed=3,
     ),
     "Halloween: Pumpkin Patch": PatternConfig(
@@ -269,7 +494,14 @@ PRESET_PATTERNS: dict[str, PatternConfig] = {
     # Hanukkah
     "Hanukkah: Eight Days Of Lights": PatternConfig(
         pattern_type="stationary",
-        colors=[(255, 255, 255), (255, 255, 255), (255, 255, 255), (0, 0, 255), (0, 0, 255), (0, 0, 255)],
+        colors=[
+            (255, 255, 255),
+            (255, 255, 255),
+            (255, 255, 255),
+            (0, 0, 255),
+            (0, 0, 255),
+            (0, 0, 255),
+        ],
         speed=1,
     ),
     "Hanukkah: Hanukkah Glide": PatternConfig(
@@ -280,7 +512,17 @@ PRESET_PATTERNS: dict[str, PatternConfig] = {
     # Labor Day
     "Labor Day: Continued Progress": PatternConfig(
         pattern_type="bolt",
-        colors=[(255, 0, 0), (255, 0, 0), (255, 0, 0), (0, 0, 255), (0, 0, 255), (0, 0, 255), (255, 255, 255), (255, 255, 255), (255, 255, 255)],
+        colors=[
+            (255, 0, 0),
+            (255, 0, 0),
+            (255, 0, 0),
+            (0, 0, 255),
+            (0, 0, 255),
+            (0, 0, 255),
+            (255, 255, 255),
+            (255, 255, 255),
+            (255, 255, 255),
+        ],
         speed=1,
     ),
     "Labor Day: United Strong": PatternConfig(
@@ -291,7 +533,17 @@ PRESET_PATTERNS: dict[str, PatternConfig] = {
     # Memorial Day
     "Memorial Day: In Honor Of Service": PatternConfig(
         pattern_type="stationary",
-        colors=[(255, 0, 0), (255, 0, 0), (255, 0, 0), (0, 0, 255), (0, 0, 255), (0, 0, 255), (255, 255, 255), (255, 255, 255), (255, 255, 255)],
+        colors=[
+            (255, 0, 0),
+            (255, 0, 0),
+            (255, 0, 0),
+            (0, 0, 255),
+            (0, 0, 255),
+            (0, 0, 255),
+            (255, 255, 255),
+            (255, 255, 255),
+            (255, 255, 255),
+        ],
         speed=1,
     ),
     "Memorial Day: Unity Of Service": PatternConfig(
@@ -302,7 +554,17 @@ PRESET_PATTERNS: dict[str, PatternConfig] = {
     # Mothers Day
     "Mothers Day: Breakfast In Bed": PatternConfig(
         pattern_type="stationary",
-        colors=[(100, 20, 255), (100, 20, 255), (100, 20, 255), (230, 20, 255), (230, 20, 255), (230, 20, 255), (20, 205, 255), (20, 205, 255), (20, 205, 255)],
+        colors=[
+            (100, 20, 255),
+            (100, 20, 255),
+            (100, 20, 255),
+            (230, 20, 255),
+            (230, 20, 255),
+            (230, 20, 255),
+            (20, 205, 255),
+            (20, 205, 255),
+            (20, 205, 255),
+        ],
         speed=1,
     ),
     "Mothers Day: Love For A Mother": PatternConfig(
@@ -323,7 +585,14 @@ PRESET_PATTERNS: dict[str, PatternConfig] = {
     ),
     "New Years: River of Gold": PatternConfig(
         pattern_type="river",
-        colors=[(255, 255, 255), (255, 145, 15), (255, 255, 255), (255, 145, 15), (255, 255, 255), (255, 145, 15)],
+        colors=[
+            (255, 255, 255),
+            (255, 145, 15),
+            (255, 255, 255),
+            (255, 145, 15),
+            (255, 255, 255),
+            (255, 145, 15),
+        ],
         speed=5,
     ),
     "New Years: Sliding Into the New Year": PatternConfig(
@@ -339,12 +608,32 @@ PRESET_PATTERNS: dict[str, PatternConfig] = {
     # Presidents Day
     "Presidents Day: Flight Of The President": PatternConfig(
         pattern_type="twinkle",
-        colors=[(255, 0, 0), (255, 0, 0), (255, 0, 0), (0, 0, 255), (0, 0, 255), (0, 0, 255), (255, 255, 255), (255, 255, 255), (255, 255, 255)],
+        colors=[
+            (255, 0, 0),
+            (255, 0, 0),
+            (255, 0, 0),
+            (0, 0, 255),
+            (0, 0, 255),
+            (0, 0, 255),
+            (255, 255, 255),
+            (255, 255, 255),
+            (255, 255, 255),
+        ],
         speed=1,
     ),
     "Presidents Day: The Presidents March": PatternConfig(
         pattern_type="march",
-        colors=[(255, 0, 0), (255, 0, 0), (255, 0, 0), (0, 0, 255), (0, 0, 255), (0, 0, 255), (255, 255, 255), (255, 255, 255), (255, 255, 255)],
+        colors=[
+            (255, 0, 0),
+            (255, 0, 0),
+            (255, 0, 0),
+            (0, 0, 255),
+            (0, 0, 255),
+            (0, 0, 255),
+            (255, 255, 255),
+            (255, 255, 255),
+            (255, 255, 255),
+        ],
         speed=1,
     ),
     # Pride
@@ -356,7 +645,14 @@ PRESET_PATTERNS: dict[str, PatternConfig] = {
     # Quinceanera
     "Quinceanera: Perfectly Pink": PatternConfig(
         pattern_type="twinkle",
-        colors=[(255, 61, 183), (255, 46, 228), (255, 10, 164), (255, 46, 149), (255, 46, 228), (255, 46, 129)],
+        colors=[
+            (255, 61, 183),
+            (255, 46, 228),
+            (255, 10, 164),
+            (255, 46, 149),
+            (255, 46, 228),
+            (255, 46, 129),
+        ],
         speed=9,
     ),
     "Quinceanera: Twinkle Eyes": PatternConfig(
@@ -372,7 +668,14 @@ PRESET_PATTERNS: dict[str, PatternConfig] = {
     # St. Patricks Day
     "St. Patricks Day: Follow The Rainbow": PatternConfig(
         pattern_type="split",
-        colors=[(255, 0, 5), (255, 50, 0), (255, 230, 0), (63, 255, 0), (0, 136, 255), (100, 0, 255)],
+        colors=[
+            (255, 0, 5),
+            (255, 50, 0),
+            (255, 230, 0),
+            (63, 255, 0),
+            (0, 136, 255),
+            (100, 0, 255),
+        ],
         speed=1,
     ),
     "St. Patricks Day: Sprinkle Of Dust": PatternConfig(

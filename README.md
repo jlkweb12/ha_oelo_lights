@@ -1,7 +1,7 @@
 # Oelo Lights Home Assistant Integration
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
-[![version](https://img.shields.io/badge/version-1.1.1-blue)](https://github.com/jlkweb12/ha_oelo_lights)
+[![version](https://img.shields.io/badge/version-1.1.2-blue)](https://github.com/jlkweb12/ha_oelo_lights)
 [![CI](https://github.com/jlkweb12/ha_oelo_lights/actions/workflows/lint.yml/badge.svg)](https://github.com/jlkweb12/ha_oelo_lights/actions/workflows/lint.yml)
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/jlkweb12/ha_oelo_lights/graphs/commit-activity)
 

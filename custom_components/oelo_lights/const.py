@@ -1,4 +1,5 @@
 """Constants for the Oelo Lights integration."""
+
 from datetime import timedelta
 
 DOMAIN = "oelo_lights"

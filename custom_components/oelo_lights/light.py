@@ -1,4 +1,5 @@
 """Platform for Oelo Lights integration."""
+
 from __future__ import annotations
 
 import asyncio
@@ -8,7 +9,6 @@ from typing import Any
 
 import aiohttp
 import voluptuous as vol
-
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_EFFECT,
@@ -18,9 +18,10 @@ from homeassistant.components.light import (
     LightEntityFeature,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_IP_ADDRESS, STATE_ON
+from homeassistant.const import STATE_ON
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import aiohttp_client, config_validation as cv, entity_platform
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_platform
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
@@ -378,9 +379,7 @@ class OeloLight(LightEntity, RestoreEntity):
         except (ValueError, TypeError):
             return False
 
-    def _validate_colors(
-        self, colors: list[list[int]]
-    ) -> list[tuple[int, int, int]] | None:
+    def _validate_colors(self, colors: list[list[int]]) -> list[tuple[int, int, int]] | None:
         """Validate and convert a list of colors."""
         validated: list[tuple[int, int, int]] = []
         for color in colors[:MAX_COLORS]:
@@ -472,9 +471,7 @@ class OeloLight(LightEntity, RestoreEntity):
         return f"http://{self.coordinator.ip}/setPattern?{urllib.parse.urlencode(params)}"
 
     @staticmethod
-    def _scale_color(
-        rgb: tuple[int, int, int], factor: float
-    ) -> tuple[int, int, int]:
+    def _scale_color(rgb: tuple[int, int, int], factor: float) -> tuple[int, int, int]:
         """Scale RGB color by brightness factor."""
         return tuple(  # type: ignore[return-value]
             max(0, min(int(round(c * factor)), 255)) for c in rgb
@@ -562,7 +559,7 @@ class OeloLight(LightEntity, RestoreEntity):
 
         except asyncio.CancelledError:
             pass
-        except asyncio.TimeoutError:
+        except TimeoutError:
             _LOGGER.warning("Timeout sending command to Oelo controller")
             if self._pending_command_future and not self._pending_command_future.done():
                 self._pending_command_future.set_result(False)
