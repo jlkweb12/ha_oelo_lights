@@ -6,19 +6,19 @@ from typing import Any
 
 import aiohttp
 import voluptuous as vol
-
 from homeassistant.config_entries import ConfigEntry, ConfigEntryNotReady
 from homeassistant.const import CONF_IP_ADDRESS, Platform
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.helpers import aiohttp_client, config_validation as cv
+from homeassistant.helpers import aiohttp_client
+from homeassistant.helpers import config_validation as cv
 
 from .const import (
+    DEFAULT_TIMEOUT,
     DOMAIN,
     MAX_COLORS,
     MODE_CUSTOM,
     MODE_PRESET,
     PATTERN_TYPE_CUSTOM,
-    DEFAULT_TIMEOUT,
 )
 from .coordinator import OeloDataUpdateCoordinator
 from .patterns import get_preset
@@ -45,10 +45,10 @@ SERVICE_SCHEMA = vol.Schema(
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Oelo Lights from a config entry."""
     hass.data.setdefault(DOMAIN, {})
-    
+
     ip_address = entry.data[CONF_IP_ADDRESS]
     session = aiohttp_client.async_get_clientsession(hass)
-    
+
     # Create coordinator and test connection before forwarding to platforms
     coordinator = OeloDataUpdateCoordinator(hass, session, ip_address)
     try:
@@ -57,7 +57,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         raise ConfigEntryNotReady(
             f"Unable to connect to Oelo controller at {ip_address}: {err}"
         ) from err
-    
+
     # Store coordinator in hass.data for use by platforms
     hass.data[DOMAIN][entry.entry_id] = {
         "coordinator": coordinator,
@@ -67,6 +67,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Register the domain service if not already registered
     if not hass.services.has_service(DOMAIN, SERVICE_CONTROL_LIGHTS):
+
         async def handle_control_lights(call: ServiceCall) -> None:
             """Handle the control_lights service call."""
             mode = call.data["mode"]
@@ -127,7 +128,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
             if url_to_send:
                 try:
-                    async with session.get(url_to_send, timeout=aiohttp.ClientTimeout(total=DEFAULT_TIMEOUT)) as response:
+                    async with session.get(
+                        url_to_send, timeout=aiohttp.ClientTimeout(total=DEFAULT_TIMEOUT)
+                    ) as response:
                         response.raise_for_status()
                         _LOGGER.debug("Successfully sent command to Oelo controller")
                 except Exception as err:
@@ -151,11 +154,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unload_ok:
         # Clean up hass.data
         hass.data[DOMAIN].pop(entry.entry_id, None)
-        
+
         # Check if there are other config entries still loaded
         remaining_entries = [
-            e for e in hass.config_entries.async_entries(DOMAIN)
-            if e.entry_id != entry.entry_id
+            e for e in hass.config_entries.async_entries(DOMAIN) if e.entry_id != entry.entry_id
         ]
         if not remaining_entries and hass.services.has_service(DOMAIN, SERVICE_CONTROL_LIGHTS):
             hass.services.async_remove(DOMAIN, SERVICE_CONTROL_LIGHTS)

@@ -1,4 +1,5 @@
 """Config flow for Oelo Lights integration."""
+
 from __future__ import annotations
 
 import asyncio
@@ -8,7 +9,6 @@ from typing import Any
 
 import aiohttp
 import voluptuous as vol
-
 from homeassistant import config_entries
 from homeassistant.const import CONF_IP_ADDRESS
 from homeassistant.helpers import aiohttp_client
@@ -23,9 +23,11 @@ IP_REGEX = re.compile(
     r"(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
 )
 
-DATA_SCHEMA = vol.Schema({
-    vol.Required(CONF_IP_ADDRESS): str,
-})
+DATA_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_IP_ADDRESS): str,
+    }
+)
 
 
 def is_valid_ip(ip: str) -> bool:
@@ -52,7 +54,7 @@ class OeloConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             return True, None
                         return False, "invalid_response"
                     return False, "cannot_connect"
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return False, "timeout"
         except aiohttp.ClientError:
             return False, "cannot_connect"
