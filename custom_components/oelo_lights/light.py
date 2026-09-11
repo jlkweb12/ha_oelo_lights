@@ -194,6 +194,10 @@ class OeloLight(LightEntity, RestoreEntity):
         """Run when entity is being removed."""
         if self._debounce_task:
             self._debounce_task.cancel()
+        # Cancelling only the task leaves the awaiting caller blocked on this
+        # future forever, because _debounce_and_send swallows CancelledError.
+        if self._pending_command_future and not self._pending_command_future.done():
+            self._pending_command_future.cancel()
 
     async def async_update(self) -> None:
         """Request a coordinator refresh."""
@@ -259,15 +263,13 @@ class OeloLight(LightEntity, RestoreEntity):
                 effect_to_set = selected_effect
                 url_to_send = self._build_preset_url(preset, brightness_factor)
 
-        elif not self._state:
-            # Turning on without specific params
-            if self._last_successful_command:
-                url_to_send = self._adjust_colors_in_url(
-                    self._last_successful_command, brightness_factor
-                )
-            else:
-                rgb_to_set = DEFAULT_COLOR
-                url_to_send = self._build_color_url(rgb_to_set, brightness_factor)
+        else:
+            # No color or effect given: either a brightness-only change while
+            # already on, or a plain turn-on. Rebuild from the stored *unscaled*
+            # intent so brightness always applies to the base color. Re-scaling
+            # the previous command instead would compound the factor on every
+            # off/on cycle.
+            url_to_send = self._build_current_url(brightness_factor)
 
         if url_to_send:
             success = await self._buffered_send_request(url_to_send)
@@ -278,7 +280,7 @@ class OeloLight(LightEntity, RestoreEntity):
                 self._intended_effect = effect_to_set
                 self._last_successful_command = url_to_send
                 self.async_write_ha_state()
-            else:
+            elif success is False:
                 _LOGGER.warning("Failed to send command to Oelo controller")
 
     async def async_turn_off(self, **kwargs: Any) -> None:
@@ -290,7 +292,7 @@ class OeloLight(LightEntity, RestoreEntity):
         if success:
             self._state = False
             self.async_write_ha_state()
-        else:
+        elif success is False:
             _LOGGER.warning("Failed to turn off Oelo light")
 
     async def async_control_oelo_lights(
@@ -330,7 +332,7 @@ class OeloLight(LightEntity, RestoreEntity):
                 gap_override=gap if gap != 0 else None,
             )
             effect_name = preset_name
-            if preset.colors:
+            if preset.colors and self._targets_own_zone(zone_list):
                 self._rgb_color = preset.colors[0]
 
         elif mode == MODE_CUSTOM:
@@ -352,17 +354,22 @@ class OeloLight(LightEntity, RestoreEntity):
                 gap=gap,
             )
             effect_name = custom_pattern_type
-            self._rgb_color = validated_colors[0]
+            if self._targets_own_zone(zone_list):
+                self._rgb_color = validated_colors[0]
 
         if url_to_send:
             success = await self._buffered_send_request(url_to_send)
             if success:
-                self._state = True
-                self._intended_effect = effect_name
                 self._last_successful_command = url_to_send
                 await self._save_last_command()
-                self.async_write_ha_state()
-            else:
+                # Only reflect the new state on entities the command addressed.
+                # With target_zones pointing elsewhere this entity's zone was
+                # not changed, so claiming it was would desync the UI.
+                if self._targets_own_zone(zone_list):
+                    self._state = True
+                    self._intended_effect = effect_name
+                    self.async_write_ha_state()
+            elif success is False:
                 _LOGGER.error("Failed to execute control_lights command")
 
     # -------------------------------------------------------------------------
@@ -418,6 +425,23 @@ class OeloLight(LightEntity, RestoreEntity):
             "other": 0,
             "pause": 0,
         }
+
+    def _targets_own_zone(self, zone_list: list[str]) -> bool:
+        """Return True if this entity's zone is among the addressed zones."""
+        return str(self._zone) in zone_list
+
+    def _build_current_url(self, brightness_factor: float) -> str:
+        """Build a command for the current intent at the given brightness.
+
+        Always derives from the unscaled `_rgb_color` / `_intended_effect`, both
+        of which RestoreEntity repopulates after a restart, so brightness is
+        never applied on top of an already-scaled value.
+        """
+        if self._intended_effect:
+            preset = get_preset(self._intended_effect)
+            if preset:
+                return self._build_preset_url(preset, brightness_factor)
+        return self._build_color_url(self._rgb_color, brightness_factor)
 
     def _build_color_url(
         self,
@@ -477,23 +501,6 @@ class OeloLight(LightEntity, RestoreEntity):
             max(0, min(int(round(c * factor)), 255)) for c in rgb
         )
 
-    def _adjust_colors_in_url(self, url: str, brightness_factor: float) -> str:
-        """Adjust color values in an existing URL by brightness factor."""
-        try:
-            parsed = urllib.parse.urlparse(url)
-            query = urllib.parse.parse_qs(parsed.query)
-
-            if "colors" in query:
-                color_values = [int(c) for c in query["colors"][0].split(",")]
-                scaled = [max(0, min(int(round(v * brightness_factor)), 255)) for v in color_values]
-                query["colors"] = [",".join(map(str, scaled))]
-                new_query = urllib.parse.urlencode(query, doseq=True)
-                return urllib.parse.urlunparse(parsed._replace(query=new_query))
-        except (ValueError, KeyError, IndexError) as err:
-            _LOGGER.debug("Failed to adjust colors in URL: %s", err)
-
-        return url
-
     async def _save_last_command(self) -> None:
         """Save the last successful command to persistent storage."""
         if not self.hass:
@@ -521,8 +528,14 @@ class OeloLight(LightEntity, RestoreEntity):
         except Exception as err:  # noqa: BLE001
             _LOGGER.warning("Failed to save last command to storage: %s", err)
 
-    async def _buffered_send_request(self, url: str) -> bool:
-        """Send a request with debouncing to avoid overwhelming the controller."""
+    async def _buffered_send_request(self, url: str) -> bool | None:
+        """Send a request with debouncing to avoid overwhelming the controller.
+
+        Returns True if the controller accepted the command, False if the send
+        failed, and None if a newer command superseded this one (or the entity
+        was removed) - which is normal during a slider drag and must not be
+        reported to the user as a failure.
+        """
         loop = asyncio.get_running_loop()
 
         # Cancel any pending request
@@ -538,7 +551,7 @@ class OeloLight(LightEntity, RestoreEntity):
         try:
             return await self._pending_command_future
         except asyncio.CancelledError:
-            return False
+            return None
 
     async def _debounce_and_send(self) -> None:
         """Wait for debounce interval then send the pending command."""
@@ -558,7 +571,8 @@ class OeloLight(LightEntity, RestoreEntity):
                         future.set_result(True)
 
         except asyncio.CancelledError:
-            pass
+            if self._pending_command_future and not self._pending_command_future.done():
+                self._pending_command_future.cancel()
         except TimeoutError:
             _LOGGER.warning("Timeout sending command to Oelo controller")
             if self._pending_command_future and not self._pending_command_future.done():
