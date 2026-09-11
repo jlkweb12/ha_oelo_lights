@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import aiohttp
 import pytest
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_IP_ADDRESS
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
@@ -126,7 +129,6 @@ async def test_service_sends_preset_command(
     aioclient_mock.clear_requests()
     aioclient_mock.get(f"http://{MOCK_IP}/getController", json=MOCK_CONTROLLER_DATA)
     aioclient_mock.get(f"http://{MOCK_IP}/setPattern", text="ok")
-    aioclient_mock.get(f"http://{MOCK_IP}/setMotion", text="ok")
 
     await hass.services.async_call(
         DOMAIN,
@@ -149,9 +151,17 @@ async def test_service_ignores_unknown_preset(
     mock_config_entry: MockConfigEntry,
     aioclient_mock: AiohttpClientMocker,
 ) -> None:
-    """An unknown preset name is logged and dropped, not raised."""
+    """An unknown preset name is logged and dropped, not raised.
+
+    The command endpoint is registered so that a request would be recorded.
+    Asserting on an *unregistered* endpoint would be vacuous: an unmatched
+    request raises inside the entity and is swallowed, leaving mock_calls empty
+    whether or not the integration tried to send anything.
+    """
     await _setup(hass, mock_config_entry, aioclient_mock)
     aioclient_mock.clear_requests()
+    aioclient_mock.get(f"http://{MOCK_IP}/getController", json=MOCK_CONTROLLER_DATA)
+    aioclient_mock.get(f"http://{MOCK_IP}/setPattern", text="ok")
 
     await hass.services.async_call(
         DOMAIN,
@@ -219,11 +229,15 @@ async def test_service_requires_a_target(
 ) -> None:
     """A call with no entity/device/area target is rejected.
 
-    `__init__.py` also defines a target-free domain service, but platforms are
-    forwarded before it is registered, so the entity service claims the name
-    first and the `if not has_service(...)` guard skips the domain handler
-    permanently. This asserts the behaviour users actually get: a target is
-    mandatory. It will start failing if the domain service is ever wired up.
+    `__init__.py` also defines a target-free domain service. On a successful
+    setup the light platform registers the same service name first, so the
+    `if not has_service(...)` guard skips the domain handler and a target is
+    mandatory - the behaviour asserted here.
+
+    This is not guaranteed: if the light platform fails to set up, the entry
+    still loads and the domain handler IS registered, accepting target-free
+    calls and rejecting entity-targeted ones (its schema has no entity_id key).
+    See test_domain_service_registers_when_platform_fails.
     """
     await _setup(hass, mock_config_entry, aioclient_mock)
 
@@ -238,3 +252,46 @@ async def test_service_requires_a_target(
             },
             blocking=True,
         )
+
+
+async def test_domain_service_registers_when_platform_fails(
+    hass: HomeAssistant,
+    custom_integration: None,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """A failed light platform leaves the target-free domain handler registered.
+
+    `async_forward_entry_setups` does not propagate a platform failure, so the
+    entry still loads, no entity service is registered, and the `has_service`
+    guard in `async_setup_entry` lets the domain handler through. The result is
+    that the same service name has two possible handlers with incompatible
+    schemas, decided by whether platform setup happened to succeed.
+    """
+    aioclient_mock.get(f"http://{MOCK_IP}/getController", json=MOCK_CONTROLLER_DATA)
+    aioclient_mock.get(f"http://{MOCK_IP}/setPattern", text="ok")
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.oelo_lights.light.Store.async_load",
+        side_effect=HomeAssistantError("corrupt store"),
+    ):
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert mock_config_entry.state is ConfigEntryState.LOADED
+    assert not er.async_entries_for_config_entry(er.async_get(hass), mock_config_entry.entry_id), (
+        "platform was expected to fail, producing no entities"
+    )
+    assert hass.services.has_service(DOMAIN, SERVICE)
+
+    # The domain handler accepts a call with no target, which the entity service
+    # would reject outright.
+    await hass.services.async_call(
+        DOMAIN,
+        SERVICE,
+        {"mode": MODE_PRESET, "preset_name": next(iter(PRESET_PATTERNS)), "target_zones": ["3"]},
+        blocking=True,
+    )
+
+    assert _command_ips(aioclient_mock) == [MOCK_IP]

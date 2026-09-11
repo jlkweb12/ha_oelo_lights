@@ -10,18 +10,19 @@ from custom_components.oelo_lights.const import DOMAIN
 
 MOCK_IP = "192.168.1.50"
 
-# A minimal but realistic /getController payload: the integration only requires
-# that the response decodes to a list.
+# A /getController payload shaped the way the integration actually reads it:
+# OeloLight._get_zone_data() matches on an int "num" and the state is derived
+# from "pattern" (PATTERN_TYPE_OFF means off). One entry per zone, so every
+# entity resolves its own data instead of going unavailable.
 MOCK_CONTROLLER_DATA: list[dict] = [
     {
-        "zone": "1",
-        "power": "on",
-        "brightness": 255,
+        "num": zone,
+        "pattern": "stationary",
         "colors": [[255, 255, 255]],
-        "motion": "stationary",
         "speed": 0,
         "gap": 0,
     }
+    for zone in range(1, 7)
 ]
 
 

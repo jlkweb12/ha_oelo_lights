@@ -77,6 +77,9 @@ def test_preset_is_well_formed(name: str) -> None:
     preset = PRESET_PATTERNS[name]
     assert isinstance(preset, PatternConfig)
 
+    # PatternConfig.direction is deliberately not asserted: the integration
+    # hardcodes direction=F when building commands, so the field is inert.
+
     assert preset.pattern_type in set(VALID_MOTIONS) | set(VALID_PATTERN_TYPES), (
         f"{name}: unknown pattern_type {preset.pattern_type!r}"
     )
@@ -92,4 +95,3 @@ def test_preset_is_well_formed(name: str) -> None:
 
     assert 0 <= preset.speed <= 20, f"{name}: speed {preset.speed} out of range"
     assert 0 <= preset.gap <= 20, f"{name}: gap {preset.gap} out of range"
-    assert preset.direction in ("R", "L"), f"{name}: bad direction {preset.direction!r}"
