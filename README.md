@@ -412,6 +412,30 @@ automation:
 
 ---
 
+## Development
+
+Requires Python 3.13 (the Home Assistant version used for testing needs it).
+
+```bash
+python3.13 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements_test.txt
+pytest tests/ -v
+```
+
+Linting and formatting use [ruff](https://docs.astral.sh/ruff/), pinned to the
+same version in CI and in the pre-commit hooks:
+
+```bash
+pip install pre-commit
+pre-commit install        # run the hooks on every commit
+pre-commit run --all-files
+```
+
+The preset tests assert that every effect offered in `services.yaml` resolves to
+a pattern in `patterns.py`. If you add a preset, add it to both files or the
+test suite will tell you which one you missed.
+
 ## Support
 
 For bugs or feature requests, please open an issue on [GitHub](https://github.com/jlkweb12/ha_oelo_lights/issues).
