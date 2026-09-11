@@ -7,3 +7,10 @@ updates:
     labels:
       - dependencies
       - ci
+  - package-ecosystem: pre-commit
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - ci

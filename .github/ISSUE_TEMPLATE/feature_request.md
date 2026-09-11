@@ -20,7 +20,7 @@ A clear and concise description of what you want to happen. If this involves new
 A clear and concise description of any alternative solutions or features you've considered (e.g., using a Template Sensor in YAML or a different integration).
 
 ## Proposed Use Case
-How would this look in a Dashboard or Automation? 
+How would this look in a Dashboard or Automation?
 *Example: "I want to be able to trigger a notification when the sensor state changes to X."*
 
 ## Additional context
