@@ -493,3 +493,28 @@ async def test_invalid_restored_color_falls_back_to_default(
 
     state = hass.states.get("light.oelo_lights_192_168_1_50_zone_1")
     assert state.attributes[ATTR_RGB_COLOR] == DEFAULT_COLOR
+
+
+async def test_coordinator_listeners_are_released_on_unload(
+    hass: HomeAssistant,
+    custom_integration: None,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """Unloading drops every coordinator listener the entities added.
+
+    Regression: listeners were registered without async_on_remove, so each
+    reload left six stale subscriptions behind.
+    """
+    aioclient_mock.get(f"http://{MOCK_IP}/getController", json=MOCK_CONTROLLER_DATA)
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    coordinator = hass.data[DOMAIN][mock_config_entry.entry_id]["coordinator"]
+    assert len(coordinator._listeners) == 6
+
+    assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert not coordinator._listeners

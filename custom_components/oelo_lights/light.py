@@ -176,7 +176,9 @@ class OeloLight(LightEntity, RestoreEntity):
     async def async_added_to_hass(self) -> None:
         """Run when entity is added to hass."""
         await super().async_added_to_hass()
-        self.coordinator.async_add_listener(self._handle_coordinator_update)
+        # async_on_remove so the listener is dropped when the entity goes away;
+        # a bare async_add_listener leaks one subscription per entity reload.
+        self.async_on_remove(self.coordinator.async_add_listener(self._handle_coordinator_update))
 
         last_state = await self.async_get_last_state()
         if last_state:

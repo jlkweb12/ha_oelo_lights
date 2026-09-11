@@ -254,22 +254,22 @@ async def test_service_requires_a_target(
         )
 
 
-async def test_domain_service_registers_when_platform_fails(
+async def test_platform_failure_registers_no_service(
     hass: HomeAssistant,
     custom_integration: None,
     mock_config_entry: MockConfigEntry,
     aioclient_mock: AiohttpClientMocker,
 ) -> None:
-    """A failed light platform leaves the target-free domain handler registered.
+    """A failed light platform leaves no control_lights service behind.
 
     `async_forward_entry_setups` does not propagate a platform failure, so the
-    entry still loads, no entity service is registered, and the `has_service`
-    guard in `async_setup_entry` lets the domain handler through. The result is
-    that the same service name has two possible handlers with incompatible
-    schemas, decided by whether platform setup happened to succeed.
+    entry still loads with no entities. Previously `__init__.py` registered a
+    second, target-free handler under the same service name, which only ever
+    became reachable in exactly this situation - and whose schema rejected the
+    entity-targeted calls every other controller relied on. That handler is
+    gone, so a failed platform now simply offers no service.
     """
     aioclient_mock.get(f"http://{MOCK_IP}/getController", json=MOCK_CONTROLLER_DATA)
-    aioclient_mock.get(f"http://{MOCK_IP}/setPattern", text="ok")
     mock_config_entry.add_to_hass(hass)
 
     with patch(
@@ -283,15 +283,51 @@ async def test_domain_service_registers_when_platform_fails(
     assert not er.async_entries_for_config_entry(er.async_get(hass), mock_config_entry.entry_id), (
         "platform was expected to fail, producing no entities"
     )
-    assert hass.services.has_service(DOMAIN, SERVICE)
+    assert not hass.services.has_service(DOMAIN, SERVICE)
 
-    # The domain handler accepts a call with no target, which the entity service
-    # would reject outright.
+
+async def test_service_survives_a_failed_sibling_entry(
+    hass: HomeAssistant,
+    custom_integration: None,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """A working controller keeps entity-targeted control when a sibling fails.
+
+    This is what the removed domain handler used to break: its strict schema
+    had no entity_id key, so once it claimed the name a targeted call against
+    the healthy controller raised "extra keys not allowed".
+    """
+    second = MockConfigEntry(
+        domain=DOMAIN,
+        title=f"Oelo Lights ({SECOND_IP})",
+        data={CONF_IP_ADDRESS: SECOND_IP},
+        unique_id=SECOND_IP,
+    )
+    aioclient_mock.get(f"http://{MOCK_IP}/getController", json=MOCK_CONTROLLER_DATA)
+    mock_config_entry.add_to_hass(hass)
+    with patch(
+        "custom_components.oelo_lights.light.Store.async_load",
+        side_effect=HomeAssistantError("corrupt store"),
+    ):
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    await _setup(hass, second, aioclient_mock)
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(f"http://{SECOND_IP}/getController", json=MOCK_CONTROLLER_DATA)
+    aioclient_mock.get(f"http://{SECOND_IP}/setPattern", text="ok")
+
     await hass.services.async_call(
         DOMAIN,
         SERVICE,
-        {"mode": MODE_PRESET, "preset_name": next(iter(PRESET_PATTERNS)), "target_zones": ["3"]},
+        {
+            "mode": MODE_PRESET,
+            "preset_name": next(iter(PRESET_PATTERNS)),
+            "target_zones": ["1"],
+            "entity_id": _entity_for(hass, second),
+        },
         blocking=True,
     )
 
-    assert _command_ips(aioclient_mock) == [MOCK_IP]
+    assert _command_ips(aioclient_mock) == [SECOND_IP]
