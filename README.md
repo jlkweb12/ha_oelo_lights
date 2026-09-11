@@ -414,10 +414,10 @@ automation:
 
 ## Development
 
-Requires Python 3.13 (the Home Assistant version used for testing needs it).
+Requires Python 3.14 (Home Assistant 2026.9 needs 3.14.2 or newer).
 
 ```bash
-python3.13 -m venv .venv
+python3.14 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements_test.txt
 pytest tests/ -v

@@ -1,7 +1,7 @@
 {
   "name": "Oelo Lights Controller",
   "render_readme": true,
-  "homeassistant": "2024.1.0",
+  "homeassistant": "2026.9.1",
   "zip_release": true,
   "filename": "oelo_lights.zip"
 }
