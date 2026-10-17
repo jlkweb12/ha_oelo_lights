@@ -179,8 +179,19 @@ class OeloLight(LightEntity, RestoreEntity):
 
     @property
     def extra_restore_state_data(self) -> ExtraStoredData:
-        """Persist the service-set pattern, which state attributes do not carry."""
-        return RestoredExtraData({"pattern": self._pattern})
+        """Persist the unscaled intent, which state attributes do not reliably carry.
+
+        HA records an off light's brightness, effect and color as None, and has
+        no attribute for a service-set pattern at all.
+        """
+        return RestoredExtraData(
+            {
+                "pattern": self._pattern,
+                "rgb_color": list(self._rgb_color),
+                "effect": self._intended_effect,
+                "brightness": self._brightness,
+            }
+        )
 
     async def async_added_to_hass(self) -> None:
         """Run when entity is added to hass."""
@@ -201,9 +212,18 @@ class OeloLight(LightEntity, RestoreEntity):
             else:
                 self._rgb_color = DEFAULT_COLOR
 
+        # Extra data wins over the attributes above, which are None for a light
+        # that was off. Absent on the first start after upgrading from 1.1.x.
         last_extra = await self.async_get_last_extra_data()
         if last_extra:
-            self._pattern = self._parse_pattern(last_extra.as_dict().get("pattern"))
+            extra = last_extra.as_dict()
+            self._pattern = self._parse_pattern(extra.get("pattern"))
+            if self._is_valid_rgb(extra.get("rgb_color")):
+                self._rgb_color = tuple(int(c) for c in extra["rgb_color"])  # type: ignore[misc]
+            if isinstance(extra.get("effect"), str):
+                self._intended_effect = extra["effect"]
+            if isinstance(extra.get("brightness"), int):
+                self._brightness = extra["brightness"]
 
     async def async_will_remove_from_hass(self) -> None:
         """Run when entity is being removed."""
@@ -283,6 +303,10 @@ class OeloLight(LightEntity, RestoreEntity):
                 url_to_send = self._build_preset_url(preset, brightness_factor)
 
         else:
+            if self._state and ATTR_BRIGHTNESS not in kwargs:
+                # Already lit and nothing to change; an automation turning on a
+                # lit area must not re-send the running pattern every trigger.
+                return
             # No color or effect given: either a brightness-only change while
             # already on, or a plain turn-on. Rebuild from the stored *unscaled*
             # intent so brightness always applies to the base color. Re-scaling
@@ -351,8 +375,6 @@ class OeloLight(LightEntity, RestoreEntity):
                 "gap": gap if gap != 0 else preset.gap,
             }
             effect_name = preset_name
-            if preset.colors and self._targets_own_zone(zone_list):
-                self._rgb_color = preset.colors[0]
 
         elif mode == MODE_CUSTOM:
             if not colors:
@@ -371,8 +393,6 @@ class OeloLight(LightEntity, RestoreEntity):
                 "gap": gap,
             }
             effect_name = custom_pattern_type
-            if self._targets_own_zone(zone_list):
-                self._rgb_color = validated_colors[0]
 
         if pattern:
             url_to_send = self._build_pattern_url(pattern, 1.0, zones_str, num_zones)
@@ -387,6 +407,8 @@ class OeloLight(LightEntity, RestoreEntity):
                     self._state = True
                     self._intended_effect = effect_name
                     self._pattern = pattern
+                    if pattern["colors"]:
+                        self._rgb_color = pattern["colors"][0]
                     self.async_write_ha_state()
             elif success is False:
                 _LOGGER.error("Failed to execute control_lights command")

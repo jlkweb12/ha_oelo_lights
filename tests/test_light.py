@@ -642,6 +642,87 @@ async def test_corrupt_restored_pattern_is_ignored(
     assert last["colors"] == "1,2,3"
 
 
+async def test_plain_turn_on_while_on_sends_nothing(
+    hass: HomeAssistant, light_entity: str, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """A parameterless turn-on of a lit zone leaves the running pattern alone.
+
+    An automation that turns on an already-lit area on every trigger must not
+    re-send the pattern each time.
+    """
+    await _send_custom_chase(hass, light_entity)
+    before = len(_sent_colors(aioclient_mock))
+
+    await _turn_on(hass, light_entity)
+
+    assert len(_sent_colors(aioclient_mock)) == before
+
+
+async def _reload(hass: HomeAssistant, entry: MockConfigEntry) -> None:
+    """Unload and set up the entry again, so entities restore their state.
+
+    Removing a RestoreEntity records its last state and extra data exactly as a
+    shutdown does, including HA's off-light attributes.
+    """
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+
+@pytest.mark.parametrize(
+    ("turn_on_data", "expected_colors", "expected_effect"),
+    [
+        ({"effect": "Solid Color: Blue", "brightness": 128}, "0,0,128", "Solid Color: Blue"),
+        ({"rgb_color": [200, 100, 50], "brightness": 128}, "100,50,25", None),
+    ],
+)
+async def test_intent_survives_restart_while_off(
+    hass: HomeAssistant,
+    light_entity: str,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+    turn_on_data: dict,
+    expected_colors: str,
+    expected_effect: str | None,
+) -> None:
+    """Color, effect and brightness outlive a restart that happens while off.
+
+    Regression: HA records an off light's brightness, effect and color as None,
+    so restoring from those attributes made the next turn-on white at full
+    brightness.
+    """
+    await _turn_on(hass, light_entity, **turn_on_data)
+    await _turn_off(hass, light_entity)
+    await _reload(hass, mock_config_entry)
+
+    await _turn_on(hass, light_entity)
+
+    assert _sent_colors(aioclient_mock)[-1] == expected_colors
+    state = hass.states.get(light_entity)
+    assert state.attributes[ATTR_BRIGHTNESS] == 128
+    assert state.attributes.get(ATTR_EFFECT) == expected_effect
+
+
+async def test_failed_service_call_keeps_previous_color(
+    hass: HomeAssistant, light_entity: str, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """A service call the controller rejects does not change the zone's color."""
+    await _turn_on(hass, light_entity, rgb_color=[1, 2, 3], brightness=255)
+    await _turn_off(hass, light_entity)
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(f"http://{MOCK_IP}/getController", json=MOCK_CONTROLLER_DATA)
+    aioclient_mock.get(f"http://{MOCK_IP}/setPattern", exc=aiohttp.ClientError("nope"))
+    await _send_custom_chase(hass, light_entity)
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(f"http://{MOCK_IP}/getController", json=MOCK_CONTROLLER_DATA)
+    aioclient_mock.get(f"http://{MOCK_IP}/setPattern", text="ok")
+
+    await _turn_on(hass, light_entity, brightness=255)
+
+    assert _sent_colors(aioclient_mock)[-1] == "1,2,3"
+
+
 async def test_service_does_not_mark_untargeted_zone_on(
     hass: HomeAssistant,
     custom_integration: None,
