@@ -229,15 +229,9 @@ async def test_service_requires_a_target(
 ) -> None:
     """A call with no entity/device/area target is rejected.
 
-    `__init__.py` also defines a target-free domain service. On a successful
-    setup the light platform registers the same service name first, so the
-    `if not has_service(...)` guard skips the domain handler and a target is
-    mandatory - the behaviour asserted here.
-
-    This is not guaranteed: if the light platform fails to set up, the entry
-    still loads and the domain handler IS registered, accepting target-free
-    calls and rejecting entity-targeted ones (its schema has no entity_id key).
-    See test_domain_service_registers_when_platform_fails.
+    control_lights exists only as the light platform's entity service, so a
+    target is mandatory. The target-free domain handler `__init__.py` used to
+    define is gone; see test_platform_failure_registers_no_service.
     """
     await _setup(hass, mock_config_entry, aioclient_mock)
 
