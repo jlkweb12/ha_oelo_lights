@@ -33,7 +33,7 @@ A clear and concise description of what you expected to happen.
 * **Version:** [e.g. 22]
 
 ## Logs
-Please provide logs from Home Assistant. 
+Please provide logs from Home Assistant.
 1. Go to **Settings** > **System** > **Logs**.
 2. Click on your integration/error.
 3. Paste the logs here between the backticks:

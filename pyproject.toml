@@ -1,4 +1,8 @@
 [tool.ruff]
+# Matches the runtime floor: hacs.json requires HA 2024.4.0, which runs on
+# Python 3.12. A higher target lets ruff introduce syntax that floor cannot
+# parse - at py314 the formatter rewrites `except (A, B):` to PEP 758
+# `except A, B:` - turning a version slip into a SyntaxError on older installs.
 target-version = "py312"
 line-length = 100
 
@@ -14,4 +18,17 @@ select = [
 ]
 ignore = [
     "E501", # line length handled by formatter
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["custom_components/oelo_lights"]
+
+[tool.coverage.report]
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
 ]

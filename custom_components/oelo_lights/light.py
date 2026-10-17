@@ -24,7 +24,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_platform
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.helpers.restore_state import ExtraStoredData, RestoredExtraData, RestoreEntity
 from homeassistant.helpers.storage import Store
 
 from .const import (
@@ -118,6 +118,10 @@ class OeloLight(LightEntity, RestoreEntity):
         self._brightness: int = DEFAULT_BRIGHTNESS
         self._rgb_color: tuple[int, int, int] = DEFAULT_COLOR
         self._intended_effect: str | None = None
+        # Unscaled pattern last set through control_lights. A custom pattern's
+        # effect name is a motion like "chase" with no preset behind it, so this
+        # is the only record of its colors, speed and gap.
+        self._pattern: dict[str, Any] | None = None
         self._last_successful_command: str | None = restored_last_command
 
         # Debouncing state
@@ -173,10 +177,28 @@ class OeloLight(LightEntity, RestoreEntity):
         """Return the list of available effects."""
         return get_preset_names() if self.available else None
 
+    @property
+    def extra_restore_state_data(self) -> ExtraStoredData:
+        """Persist the unscaled intent, which state attributes do not reliably carry.
+
+        HA records an off light's brightness, effect and color as None, and has
+        no attribute for a service-set pattern at all.
+        """
+        return RestoredExtraData(
+            {
+                "pattern": self._pattern,
+                "rgb_color": list(self._rgb_color),
+                "effect": self._intended_effect,
+                "brightness": self._brightness,
+            }
+        )
+
     async def async_added_to_hass(self) -> None:
         """Run when entity is added to hass."""
         await super().async_added_to_hass()
-        self.coordinator.async_add_listener(self._handle_coordinator_update)
+        # async_on_remove so the listener is dropped when the entity goes away;
+        # a bare async_add_listener leaks one subscription per entity reload.
+        self.async_on_remove(self.coordinator.async_add_listener(self._handle_coordinator_update))
 
         last_state = await self.async_get_last_state()
         if last_state:
@@ -190,10 +212,27 @@ class OeloLight(LightEntity, RestoreEntity):
             else:
                 self._rgb_color = DEFAULT_COLOR
 
+        # Extra data wins over the attributes above, which are None for a light
+        # that was off. Absent on the first start after upgrading from 1.1.x.
+        last_extra = await self.async_get_last_extra_data()
+        if last_extra:
+            extra = last_extra.as_dict()
+            self._pattern = self._parse_pattern(extra.get("pattern"))
+            if self._is_valid_rgb(extra.get("rgb_color")):
+                self._rgb_color = tuple(int(c) for c in extra["rgb_color"])  # type: ignore[misc]
+            if isinstance(extra.get("effect"), str):
+                self._intended_effect = extra["effect"]
+            if isinstance(extra.get("brightness"), int):
+                self._brightness = extra["brightness"]
+
     async def async_will_remove_from_hass(self) -> None:
         """Run when entity is being removed."""
         if self._debounce_task:
             self._debounce_task.cancel()
+        # Cancelling only the task leaves the awaiting caller blocked on this
+        # future forever, because _debounce_and_send swallows CancelledError.
+        if self._pending_command_future and not self._pending_command_future.done():
+            self._pending_command_future.cancel()
 
     async def async_update(self) -> None:
         """Request a coordinator refresh."""
@@ -220,10 +259,11 @@ class OeloLight(LightEntity, RestoreEntity):
         if not self._attr_available:
             self._attr_available = True
 
+        # The intended effect and pattern are kept through an outside turn-off
+        # (e.g. an Oelo app schedule) so HA's next turn-on restores them; the
+        # effect property already reports None while the zone is off.
         if state_changed:
             self._state = is_on
-            if not is_on:
-                self._intended_effect = None
 
         self.async_write_ha_state()
 
@@ -242,6 +282,7 @@ class OeloLight(LightEntity, RestoreEntity):
         """Turn the light on."""
         url_to_send: str | None = None
         effect_to_set: str | None = self._intended_effect
+        pattern_to_set: dict[str, Any] | None = self._pattern
         rgb_to_set: tuple[int, int, int] = self._rgb_color
         brightness_to_set = kwargs.get(ATTR_BRIGHTNESS, self._brightness) or DEFAULT_BRIGHTNESS
         brightness_to_set = max(0, min(brightness_to_set, 255))
@@ -250,6 +291,7 @@ class OeloLight(LightEntity, RestoreEntity):
         if ATTR_RGB_COLOR in kwargs:
             rgb_to_set = tuple(kwargs[ATTR_RGB_COLOR])  # type: ignore[assignment]
             effect_to_set = None
+            pattern_to_set = None
             url_to_send = self._build_color_url(rgb_to_set, brightness_factor)
 
         elif ATTR_EFFECT in kwargs:
@@ -257,17 +299,20 @@ class OeloLight(LightEntity, RestoreEntity):
             preset = get_preset(selected_effect)
             if preset:
                 effect_to_set = selected_effect
+                pattern_to_set = None
                 url_to_send = self._build_preset_url(preset, brightness_factor)
 
-        elif not self._state:
-            # Turning on without specific params
-            if self._last_successful_command:
-                url_to_send = self._adjust_colors_in_url(
-                    self._last_successful_command, brightness_factor
-                )
-            else:
-                rgb_to_set = DEFAULT_COLOR
-                url_to_send = self._build_color_url(rgb_to_set, brightness_factor)
+        else:
+            if self._state and ATTR_BRIGHTNESS not in kwargs:
+                # Already lit and nothing to change; an automation turning on a
+                # lit area must not re-send the running pattern every trigger.
+                return
+            # No color or effect given: either a brightness-only change while
+            # already on, or a plain turn-on. Rebuild from the stored *unscaled*
+            # intent so brightness always applies to the base color. Re-scaling
+            # the previous command instead would compound the factor on every
+            # off/on cycle.
+            url_to_send = self._build_current_url(brightness_factor)
 
         if url_to_send:
             success = await self._buffered_send_request(url_to_send)
@@ -276,9 +321,10 @@ class OeloLight(LightEntity, RestoreEntity):
                 self._brightness = brightness_to_set
                 self._rgb_color = rgb_to_set
                 self._intended_effect = effect_to_set
+                self._pattern = pattern_to_set
                 self._last_successful_command = url_to_send
                 self.async_write_ha_state()
-            else:
+            elif success is False:
                 _LOGGER.warning("Failed to send command to Oelo controller")
 
     async def async_turn_off(self, **kwargs: Any) -> None:
@@ -290,7 +336,7 @@ class OeloLight(LightEntity, RestoreEntity):
         if success:
             self._state = False
             self.async_write_ha_state()
-        else:
+        elif success is False:
             _LOGGER.warning("Failed to turn off Oelo light")
 
     async def async_control_oelo_lights(
@@ -308,7 +354,7 @@ class OeloLight(LightEntity, RestoreEntity):
         zones_str = ",".join(zone_list)
         num_zones = len(zone_list)
 
-        url_to_send: str | None = None
+        pattern: dict[str, Any] | None = None
         effect_name: str | None = None
 
         if mode == MODE_PRESET:
@@ -321,17 +367,14 @@ class OeloLight(LightEntity, RestoreEntity):
                 _LOGGER.error("Preset '%s' not found", preset_name)
                 return
 
-            url_to_send = self._build_preset_url(
-                preset,
-                brightness_factor=1.0,
-                zones_str=zones_str,
-                num_zones=num_zones,
-                speed_override=speed if speed != 1 else None,
-                gap_override=gap if gap != 0 else None,
-            )
+            # speed=1 and gap=0 are the schema defaults, so they mean "not set".
+            pattern = {
+                "pattern_type": preset.pattern_type,
+                "colors": list(preset.colors),
+                "speed": speed if speed != 1 else preset.speed,
+                "gap": gap if gap != 0 else preset.gap,
+            }
             effect_name = preset_name
-            if preset.colors:
-                self._rgb_color = preset.colors[0]
 
         elif mode == MODE_CUSTOM:
             if not colors:
@@ -343,26 +386,31 @@ class OeloLight(LightEntity, RestoreEntity):
                 _LOGGER.error("Invalid colors provided")
                 return
 
-            url_to_send = self._build_custom_url(
-                pattern_type=custom_pattern_type,
-                colors=validated_colors,
-                zones_str=zones_str,
-                num_zones=num_zones,
-                speed=speed,
-                gap=gap,
-            )
+            pattern = {
+                "pattern_type": custom_pattern_type,
+                "colors": validated_colors,
+                "speed": speed,
+                "gap": gap,
+            }
             effect_name = custom_pattern_type
-            self._rgb_color = validated_colors[0]
 
-        if url_to_send:
+        if pattern:
+            url_to_send = self._build_pattern_url(pattern, 1.0, zones_str, num_zones)
             success = await self._buffered_send_request(url_to_send)
             if success:
-                self._state = True
-                self._intended_effect = effect_name
                 self._last_successful_command = url_to_send
                 await self._save_last_command()
-                self.async_write_ha_state()
-            else:
+                # Only reflect the new state on entities the command addressed.
+                # With target_zones pointing elsewhere this entity's zone was
+                # not changed, so claiming it was would desync the UI.
+                if self._targets_own_zone(zone_list):
+                    self._state = True
+                    self._intended_effect = effect_name
+                    self._pattern = pattern
+                    if pattern["colors"]:
+                        self._rgb_color = pattern["colors"][0]
+                    self.async_write_ha_state()
+            elif success is False:
                 _LOGGER.error("Failed to execute control_lights command")
 
     # -------------------------------------------------------------------------
@@ -392,6 +440,27 @@ class OeloLight(LightEntity, RestoreEntity):
                 return None
         return validated if validated else None
 
+    def _parse_pattern(self, data: Any) -> dict[str, Any] | None:
+        """Validate a restored pattern, returning None if it is unusable."""
+        if not isinstance(data, dict) or not isinstance(data.get("pattern_type"), str):
+            return None
+        colors = data.get("colors")
+        if not isinstance(colors, list):
+            return None
+        validated_colors = self._validate_colors(colors)
+        if not validated_colors:
+            return None
+        try:
+            speed, gap = int(data["speed"]), int(data["gap"])
+        except (KeyError, TypeError, ValueError):
+            return None
+        return {
+            "pattern_type": data["pattern_type"],
+            "colors": validated_colors,
+            "speed": speed,
+            "gap": gap,
+        }
+
     def _build_base_params(
         self,
         pattern_type: str,
@@ -419,6 +488,25 @@ class OeloLight(LightEntity, RestoreEntity):
             "pause": 0,
         }
 
+    def _targets_own_zone(self, zone_list: list[str]) -> bool:
+        """Return True if this entity's zone is among the addressed zones."""
+        return str(self._zone) in zone_list
+
+    def _build_current_url(self, brightness_factor: float) -> str:
+        """Build a command for the current intent at the given brightness.
+
+        Always derives from the unscaled `_pattern` / `_intended_effect` /
+        `_rgb_color`, all of which RestoreEntity repopulates after a restart, so
+        brightness is never applied on top of an already-scaled value.
+        """
+        if self._pattern:
+            return self._build_pattern_url(self._pattern, brightness_factor)
+        if self._intended_effect:
+            preset = get_preset(self._intended_effect)
+            if preset:
+                return self._build_preset_url(preset, brightness_factor)
+        return self._build_color_url(self._rgb_color, brightness_factor)
+
     def _build_color_url(
         self,
         rgb: tuple[int, int, int],
@@ -433,40 +521,32 @@ class OeloLight(LightEntity, RestoreEntity):
         self,
         preset: Any,  # PatternConfig
         brightness_factor: float,
-        zones_str: str | None = None,
-        num_zones: int = 1,
-        speed_override: int | None = None,
-        gap_override: int | None = None,
     ) -> str:
         """Build URL for a preset pattern command."""
         scaled_colors = [self._scale_color(c, brightness_factor) for c in preset.colors]
         params = self._build_base_params(
             pattern_type=preset.pattern_type,
             colors=scaled_colors,
-            zones_str=zones_str,
-            num_zones=num_zones,
-            speed=speed_override if speed_override is not None else preset.speed,
-            gap=gap_override if gap_override is not None else preset.gap,
+            speed=preset.speed,
+            gap=preset.gap,
         )
         return f"http://{self.coordinator.ip}/setPattern?{urllib.parse.urlencode(params)}"
 
-    def _build_custom_url(
+    def _build_pattern_url(
         self,
-        pattern_type: str,
-        colors: list[tuple[int, int, int]],
-        zones_str: str,
-        num_zones: int,
-        speed: int,
-        gap: int,
+        pattern: dict[str, Any],
+        brightness_factor: float,
+        zones_str: str | None = None,
+        num_zones: int = 1,
     ) -> str:
-        """Build URL for a custom pattern command."""
+        """Build URL for a service-set pattern command."""
         params = self._build_base_params(
-            pattern_type=pattern_type,
-            colors=colors,
+            pattern_type=pattern["pattern_type"],
+            colors=[self._scale_color(c, brightness_factor) for c in pattern["colors"]],
             zones_str=zones_str,
             num_zones=num_zones,
-            speed=speed,
-            gap=gap,
+            speed=pattern["speed"],
+            gap=pattern["gap"],
         )
         return f"http://{self.coordinator.ip}/setPattern?{urllib.parse.urlencode(params)}"
 
@@ -476,23 +556,6 @@ class OeloLight(LightEntity, RestoreEntity):
         return tuple(  # type: ignore[return-value]
             max(0, min(int(round(c * factor)), 255)) for c in rgb
         )
-
-    def _adjust_colors_in_url(self, url: str, brightness_factor: float) -> str:
-        """Adjust color values in an existing URL by brightness factor."""
-        try:
-            parsed = urllib.parse.urlparse(url)
-            query = urllib.parse.parse_qs(parsed.query)
-
-            if "colors" in query:
-                color_values = [int(c) for c in query["colors"][0].split(",")]
-                scaled = [max(0, min(int(round(v * brightness_factor)), 255)) for v in color_values]
-                query["colors"] = [",".join(map(str, scaled))]
-                new_query = urllib.parse.urlencode(query, doseq=True)
-                return urllib.parse.urlunparse(parsed._replace(query=new_query))
-        except (ValueError, KeyError, IndexError) as err:
-            _LOGGER.debug("Failed to adjust colors in URL: %s", err)
-
-        return url
 
     async def _save_last_command(self) -> None:
         """Save the last successful command to persistent storage."""
@@ -521,8 +584,14 @@ class OeloLight(LightEntity, RestoreEntity):
         except Exception as err:  # noqa: BLE001
             _LOGGER.warning("Failed to save last command to storage: %s", err)
 
-    async def _buffered_send_request(self, url: str) -> bool:
-        """Send a request with debouncing to avoid overwhelming the controller."""
+    async def _buffered_send_request(self, url: str) -> bool | None:
+        """Send a request with debouncing to avoid overwhelming the controller.
+
+        Returns True if the controller accepted the command, False if the send
+        failed, and None if a newer command superseded this one (or the entity
+        was removed) - which is normal during a slider drag and must not be
+        reported to the user as a failure.
+        """
         loop = asyncio.get_running_loop()
 
         # Cancel any pending request
@@ -538,15 +607,18 @@ class OeloLight(LightEntity, RestoreEntity):
         try:
             return await self._pending_command_future
         except asyncio.CancelledError:
-            return False
+            return None
 
     async def _debounce_and_send(self) -> None:
         """Wait for debounce interval then send the pending command."""
+        # Bind this task's own future before yielding. A newer command replaces
+        # self._pending_command_future before this task sees its cancellation,
+        # so resolving the attribute here would cancel the successor instead.
+        future = self._pending_command_future
         try:
             await asyncio.sleep(DEBOUNCE_INTERVAL)
 
             url = self._pending_command_url
-            future = self._pending_command_future
 
             if not url or not future or future.cancelled():
                 return
@@ -558,16 +630,17 @@ class OeloLight(LightEntity, RestoreEntity):
                         future.set_result(True)
 
         except asyncio.CancelledError:
-            pass
+            if future and not future.done():
+                future.cancel()
         except TimeoutError:
             _LOGGER.warning("Timeout sending command to Oelo controller")
-            if self._pending_command_future and not self._pending_command_future.done():
-                self._pending_command_future.set_result(False)
+            if future and not future.done():
+                future.set_result(False)
         except aiohttp.ClientError as err:
             _LOGGER.warning("Error sending command to Oelo controller: %s", err)
-            if self._pending_command_future and not self._pending_command_future.done():
-                self._pending_command_future.set_result(False)
+            if future and not future.done():
+                future.set_result(False)
         except Exception as err:  # noqa: BLE001
             _LOGGER.exception("Unexpected error sending command: %s", err)
-            if self._pending_command_future and not self._pending_command_future.done():
-                self._pending_command_future.set_result(False)
+            if future and not future.done():
+                future.set_result(False)
