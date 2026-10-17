@@ -11,7 +11,11 @@ from homeassistant.components.light import ATTR_BRIGHTNESS, ATTR_EFFECT, ATTR_RG
 from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers import entity_registry as er
-from pytest_homeassistant_custom_component.common import MockConfigEntry, mock_restore_cache
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    mock_restore_cache,
+    mock_restore_cache_with_extra_data,
+)
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
 from custom_components.oelo_lights.const import (
@@ -410,6 +414,232 @@ async def test_service_custom_mode_rejects_bad_colors(
     await hass.async_block_till_done()
 
     assert len(_sent_colors(aioclient_mock)) == before
+
+
+def _last_command(mocker: AiohttpClientMocker) -> dict[str, str]:
+    """Return the query parameters of the last command sent."""
+    url = [str(u) for _m, u, _d, _h in mocker.mock_calls if "setPattern" in u.path][-1]
+    return {k: v[0] for k, v in urllib.parse.parse_qs(urllib.parse.urlparse(url).query).items()}
+
+
+async def _send_custom_chase(hass: HomeAssistant, entity_id: str) -> None:
+    await hass.services.async_call(
+        DOMAIN,
+        "control_lights",
+        {
+            "mode": MODE_CUSTOM,
+            "entity_id": entity_id,
+            "target_zones": ["1"],
+            "colors": [[10, 20, 30], [40, 50, 60]],
+            "custom_pattern_type": "chase",
+            "speed": 5,
+            "gap": 2,
+        },
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+
+async def _turn_off(hass: HomeAssistant, entity_id: str) -> None:
+    await hass.services.async_call("light", "turn_off", {"entity_id": entity_id}, blocking=True)
+    await hass.async_block_till_done()
+
+
+async def test_custom_pattern_survives_off_on(
+    hass: HomeAssistant, light_entity: str, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """A plain turn-on after a service custom pattern re-sends that pattern.
+
+    Regression: turn-on rebuilt from _intended_effect, which for a custom
+    pattern is a motion name like "chase" with no preset behind it, so the
+    pattern fell back to a single solid color with speed and gap reset.
+    """
+    await _send_custom_chase(hass, light_entity)
+    await _turn_off(hass, light_entity)
+
+    await _turn_on(hass, light_entity, brightness=255)
+
+    last = _last_command(aioclient_mock)
+    assert last["patternType"] == "chase"
+    assert last["colors"] == "10,20,30,40,50,60"
+    assert (last["speed"], last["gap"]) == ("5", "2")
+
+
+async def test_brightness_change_scales_custom_pattern(
+    hass: HomeAssistant, light_entity: str, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """A brightness change on a custom pattern scales every color of it."""
+    await _send_custom_chase(hass, light_entity)
+
+    await _turn_on(hass, light_entity, brightness=128)
+
+    last = _last_command(aioclient_mock)
+    assert last["patternType"] == "chase"
+    assert last["colors"] == "5,10,15,20,25,30"
+    assert (last["speed"], last["gap"]) == ("5", "2")
+
+
+async def test_preset_overrides_survive_off_on(
+    hass: HomeAssistant, light_entity: str, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """A service preset's speed and gap overrides outlive an off/on cycle."""
+    await hass.services.async_call(
+        DOMAIN,
+        "control_lights",
+        {
+            "mode": MODE_PRESET,
+            "entity_id": light_entity,
+            "target_zones": ["1"],
+            "preset_name": "Solid Color: Blue",
+            "speed": 7,
+            "gap": 3,
+        },
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+    await _turn_off(hass, light_entity)
+
+    await _turn_on(hass, light_entity, brightness=255)
+
+    last = _last_command(aioclient_mock)
+    assert last["colors"] == "0,0,255"
+    assert (last["speed"], last["gap"]) == ("7", "3")
+
+
+async def _controller_turns_zone_1_off(
+    hass: HomeAssistant, entry: MockConfigEntry, mocker: AiohttpClientMocker
+) -> None:
+    """Simulate zone 1 switched off outside HA, e.g. by an Oelo app schedule."""
+    payload = [dict(item) for item in MOCK_CONTROLLER_DATA]
+    payload[0]["pattern"] = "off"
+    mocker.clear_requests()
+    mocker.get(f"http://{MOCK_IP}/getController", json=payload)
+    mocker.get(f"http://{MOCK_IP}/setPattern", text="ok")
+    await _refresh(hass, entry)
+
+
+async def test_custom_pattern_survives_controller_turning_zone_off(
+    hass: HomeAssistant,
+    light_entity: str,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """A zone switched off outside HA keeps its custom pattern for HA's next turn-on."""
+    await _send_custom_chase(hass, light_entity)
+    await _controller_turns_zone_1_off(hass, mock_config_entry, aioclient_mock)
+    assert hass.states.get(light_entity).state == STATE_OFF
+
+    await _turn_on(hass, light_entity, brightness=255)
+
+    last = _last_command(aioclient_mock)
+    assert last["patternType"] == "chase"
+    assert last["colors"] == "10,20,30,40,50,60"
+    assert hass.states.get(light_entity).attributes[ATTR_EFFECT] == "chase"
+
+
+async def test_effect_survives_controller_turning_zone_off(
+    hass: HomeAssistant,
+    light_entity: str,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """A zone switched off outside HA keeps its effect for HA's next turn-on.
+
+    Regression: the coordinator update cleared the intended effect when it saw
+    the zone go off. Turn-on now rebuilds from that effect instead of replaying
+    the last command, so it fell back to a solid color.
+    """
+    await _turn_on(hass, light_entity, effect="Solid Color: Blue", brightness=255)
+    await _controller_turns_zone_1_off(hass, mock_config_entry, aioclient_mock)
+    assert hass.states.get(light_entity).state == STATE_OFF
+
+    await _turn_on(hass, light_entity, brightness=255)
+
+    assert _sent_colors(aioclient_mock)[-1] == "0,0,255"
+    assert hass.states.get(light_entity).attributes[ATTR_EFFECT] == "Solid Color: Blue"
+
+
+async def test_rgb_color_replaces_custom_pattern(
+    hass: HomeAssistant, light_entity: str, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """Picking a color after a custom pattern makes the color the new intent."""
+    await _send_custom_chase(hass, light_entity)
+    await _turn_on(hass, light_entity, rgb_color=[1, 2, 3], brightness=255)
+    await _turn_off(hass, light_entity)
+
+    await _turn_on(hass, light_entity, brightness=255)
+
+    last = _last_command(aioclient_mock)
+    assert last["patternType"] == "custom"
+    assert last["colors"] == "1,2,3"
+
+
+async def test_custom_pattern_is_restored_after_restart(
+    hass: HomeAssistant,
+    custom_integration: None,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """A custom pattern set before a restart is what the next turn-on sends."""
+    entity_id = "light.oelo_lights_192_168_1_50_zone_1"
+    mock_restore_cache_with_extra_data(
+        hass,
+        [
+            (
+                State(entity_id, STATE_OFF, {}),
+                {
+                    "pattern": {
+                        "pattern_type": "chase",
+                        "colors": [[10, 20, 30], [40, 50, 60]],
+                        "speed": 5,
+                        "gap": 2,
+                    }
+                },
+            )
+        ],
+    )
+    aioclient_mock.get(f"http://{MOCK_IP}/getController", json=MOCK_CONTROLLER_DATA)
+    aioclient_mock.get(f"http://{MOCK_IP}/setPattern", text="ok")
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    await _turn_on(hass, entity_id, brightness=255)
+
+    last = _last_command(aioclient_mock)
+    assert last["patternType"] == "chase"
+    assert last["colors"] == "10,20,30,40,50,60"
+    assert (last["speed"], last["gap"]) == ("5", "2")
+
+
+async def test_corrupt_restored_pattern_is_ignored(
+    hass: HomeAssistant,
+    custom_integration: None,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """An unusable restored pattern falls back to the restored color."""
+    entity_id = "light.oelo_lights_192_168_1_50_zone_1"
+    mock_restore_cache_with_extra_data(
+        hass,
+        [
+            (
+                State(entity_id, STATE_OFF, {ATTR_RGB_COLOR: (1, 2, 3)}),
+                {"pattern": {"pattern_type": "chase", "colors": "bad", "speed": 5, "gap": 2}},
+            )
+        ],
+    )
+    aioclient_mock.get(f"http://{MOCK_IP}/getController", json=MOCK_CONTROLLER_DATA)
+    aioclient_mock.get(f"http://{MOCK_IP}/setPattern", text="ok")
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    await _turn_on(hass, entity_id, brightness=255)
+
+    last = _last_command(aioclient_mock)
+    assert last["patternType"] == "custom"
+    assert last["colors"] == "1,2,3"
 
 
 async def test_service_does_not_mark_untargeted_zone_on(

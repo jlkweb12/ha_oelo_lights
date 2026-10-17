@@ -24,7 +24,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_platform
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.helpers.restore_state import ExtraStoredData, RestoredExtraData, RestoreEntity
 from homeassistant.helpers.storage import Store
 
 from .const import (
@@ -118,6 +118,10 @@ class OeloLight(LightEntity, RestoreEntity):
         self._brightness: int = DEFAULT_BRIGHTNESS
         self._rgb_color: tuple[int, int, int] = DEFAULT_COLOR
         self._intended_effect: str | None = None
+        # Unscaled pattern last set through control_lights. A custom pattern's
+        # effect name is a motion like "chase" with no preset behind it, so this
+        # is the only record of its colors, speed and gap.
+        self._pattern: dict[str, Any] | None = None
         self._last_successful_command: str | None = restored_last_command
 
         # Debouncing state
@@ -173,6 +177,11 @@ class OeloLight(LightEntity, RestoreEntity):
         """Return the list of available effects."""
         return get_preset_names() if self.available else None
 
+    @property
+    def extra_restore_state_data(self) -> ExtraStoredData:
+        """Persist the service-set pattern, which state attributes do not carry."""
+        return RestoredExtraData({"pattern": self._pattern})
+
     async def async_added_to_hass(self) -> None:
         """Run when entity is added to hass."""
         await super().async_added_to_hass()
@@ -191,6 +200,10 @@ class OeloLight(LightEntity, RestoreEntity):
                 self._rgb_color = tuple(int(c) for c in rgb_restored)  # type: ignore[misc]
             else:
                 self._rgb_color = DEFAULT_COLOR
+
+        last_extra = await self.async_get_last_extra_data()
+        if last_extra:
+            self._pattern = self._parse_pattern(last_extra.as_dict().get("pattern"))
 
     async def async_will_remove_from_hass(self) -> None:
         """Run when entity is being removed."""
@@ -226,10 +239,11 @@ class OeloLight(LightEntity, RestoreEntity):
         if not self._attr_available:
             self._attr_available = True
 
+        # The intended effect and pattern are kept through an outside turn-off
+        # (e.g. an Oelo app schedule) so HA's next turn-on restores them; the
+        # effect property already reports None while the zone is off.
         if state_changed:
             self._state = is_on
-            if not is_on:
-                self._intended_effect = None
 
         self.async_write_ha_state()
 
@@ -248,6 +262,7 @@ class OeloLight(LightEntity, RestoreEntity):
         """Turn the light on."""
         url_to_send: str | None = None
         effect_to_set: str | None = self._intended_effect
+        pattern_to_set: dict[str, Any] | None = self._pattern
         rgb_to_set: tuple[int, int, int] = self._rgb_color
         brightness_to_set = kwargs.get(ATTR_BRIGHTNESS, self._brightness) or DEFAULT_BRIGHTNESS
         brightness_to_set = max(0, min(brightness_to_set, 255))
@@ -256,6 +271,7 @@ class OeloLight(LightEntity, RestoreEntity):
         if ATTR_RGB_COLOR in kwargs:
             rgb_to_set = tuple(kwargs[ATTR_RGB_COLOR])  # type: ignore[assignment]
             effect_to_set = None
+            pattern_to_set = None
             url_to_send = self._build_color_url(rgb_to_set, brightness_factor)
 
         elif ATTR_EFFECT in kwargs:
@@ -263,6 +279,7 @@ class OeloLight(LightEntity, RestoreEntity):
             preset = get_preset(selected_effect)
             if preset:
                 effect_to_set = selected_effect
+                pattern_to_set = None
                 url_to_send = self._build_preset_url(preset, brightness_factor)
 
         else:
@@ -280,6 +297,7 @@ class OeloLight(LightEntity, RestoreEntity):
                 self._brightness = brightness_to_set
                 self._rgb_color = rgb_to_set
                 self._intended_effect = effect_to_set
+                self._pattern = pattern_to_set
                 self._last_successful_command = url_to_send
                 self.async_write_ha_state()
             elif success is False:
@@ -312,7 +330,7 @@ class OeloLight(LightEntity, RestoreEntity):
         zones_str = ",".join(zone_list)
         num_zones = len(zone_list)
 
-        url_to_send: str | None = None
+        pattern: dict[str, Any] | None = None
         effect_name: str | None = None
 
         if mode == MODE_PRESET:
@@ -325,14 +343,13 @@ class OeloLight(LightEntity, RestoreEntity):
                 _LOGGER.error("Preset '%s' not found", preset_name)
                 return
 
-            url_to_send = self._build_preset_url(
-                preset,
-                brightness_factor=1.0,
-                zones_str=zones_str,
-                num_zones=num_zones,
-                speed_override=speed if speed != 1 else None,
-                gap_override=gap if gap != 0 else None,
-            )
+            # speed=1 and gap=0 are the schema defaults, so they mean "not set".
+            pattern = {
+                "pattern_type": preset.pattern_type,
+                "colors": list(preset.colors),
+                "speed": speed if speed != 1 else preset.speed,
+                "gap": gap if gap != 0 else preset.gap,
+            }
             effect_name = preset_name
             if preset.colors and self._targets_own_zone(zone_list):
                 self._rgb_color = preset.colors[0]
@@ -347,19 +364,18 @@ class OeloLight(LightEntity, RestoreEntity):
                 _LOGGER.error("Invalid colors provided")
                 return
 
-            url_to_send = self._build_custom_url(
-                pattern_type=custom_pattern_type,
-                colors=validated_colors,
-                zones_str=zones_str,
-                num_zones=num_zones,
-                speed=speed,
-                gap=gap,
-            )
+            pattern = {
+                "pattern_type": custom_pattern_type,
+                "colors": validated_colors,
+                "speed": speed,
+                "gap": gap,
+            }
             effect_name = custom_pattern_type
             if self._targets_own_zone(zone_list):
                 self._rgb_color = validated_colors[0]
 
-        if url_to_send:
+        if pattern:
+            url_to_send = self._build_pattern_url(pattern, 1.0, zones_str, num_zones)
             success = await self._buffered_send_request(url_to_send)
             if success:
                 self._last_successful_command = url_to_send
@@ -370,6 +386,7 @@ class OeloLight(LightEntity, RestoreEntity):
                 if self._targets_own_zone(zone_list):
                     self._state = True
                     self._intended_effect = effect_name
+                    self._pattern = pattern
                     self.async_write_ha_state()
             elif success is False:
                 _LOGGER.error("Failed to execute control_lights command")
@@ -400,6 +417,27 @@ class OeloLight(LightEntity, RestoreEntity):
             else:
                 return None
         return validated if validated else None
+
+    def _parse_pattern(self, data: Any) -> dict[str, Any] | None:
+        """Validate a restored pattern, returning None if it is unusable."""
+        if not isinstance(data, dict) or not isinstance(data.get("pattern_type"), str):
+            return None
+        colors = data.get("colors")
+        if not isinstance(colors, list):
+            return None
+        validated_colors = self._validate_colors(colors)
+        if not validated_colors:
+            return None
+        try:
+            speed, gap = int(data["speed"]), int(data["gap"])
+        except (KeyError, TypeError, ValueError):
+            return None
+        return {
+            "pattern_type": data["pattern_type"],
+            "colors": validated_colors,
+            "speed": speed,
+            "gap": gap,
+        }
 
     def _build_base_params(
         self,
@@ -435,10 +473,12 @@ class OeloLight(LightEntity, RestoreEntity):
     def _build_current_url(self, brightness_factor: float) -> str:
         """Build a command for the current intent at the given brightness.
 
-        Always derives from the unscaled `_rgb_color` / `_intended_effect`, both
-        of which RestoreEntity repopulates after a restart, so brightness is
-        never applied on top of an already-scaled value.
+        Always derives from the unscaled `_pattern` / `_intended_effect` /
+        `_rgb_color`, all of which RestoreEntity repopulates after a restart, so
+        brightness is never applied on top of an already-scaled value.
         """
+        if self._pattern:
+            return self._build_pattern_url(self._pattern, brightness_factor)
         if self._intended_effect:
             preset = get_preset(self._intended_effect)
             if preset:
@@ -459,40 +499,32 @@ class OeloLight(LightEntity, RestoreEntity):
         self,
         preset: Any,  # PatternConfig
         brightness_factor: float,
-        zones_str: str | None = None,
-        num_zones: int = 1,
-        speed_override: int | None = None,
-        gap_override: int | None = None,
     ) -> str:
         """Build URL for a preset pattern command."""
         scaled_colors = [self._scale_color(c, brightness_factor) for c in preset.colors]
         params = self._build_base_params(
             pattern_type=preset.pattern_type,
             colors=scaled_colors,
-            zones_str=zones_str,
-            num_zones=num_zones,
-            speed=speed_override if speed_override is not None else preset.speed,
-            gap=gap_override if gap_override is not None else preset.gap,
+            speed=preset.speed,
+            gap=preset.gap,
         )
         return f"http://{self.coordinator.ip}/setPattern?{urllib.parse.urlencode(params)}"
 
-    def _build_custom_url(
+    def _build_pattern_url(
         self,
-        pattern_type: str,
-        colors: list[tuple[int, int, int]],
-        zones_str: str,
-        num_zones: int,
-        speed: int,
-        gap: int,
+        pattern: dict[str, Any],
+        brightness_factor: float,
+        zones_str: str | None = None,
+        num_zones: int = 1,
     ) -> str:
-        """Build URL for a custom pattern command."""
+        """Build URL for a service-set pattern command."""
         params = self._build_base_params(
-            pattern_type=pattern_type,
-            colors=colors,
+            pattern_type=pattern["pattern_type"],
+            colors=[self._scale_color(c, brightness_factor) for c in pattern["colors"]],
             zones_str=zones_str,
             num_zones=num_zones,
-            speed=speed,
-            gap=gap,
+            speed=pattern["speed"],
+            gap=pattern["gap"],
         )
         return f"http://{self.coordinator.ip}/setPattern?{urllib.parse.urlencode(params)}"
 
