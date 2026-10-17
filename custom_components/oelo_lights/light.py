@@ -557,11 +557,14 @@ class OeloLight(LightEntity, RestoreEntity):
 
     async def _debounce_and_send(self) -> None:
         """Wait for debounce interval then send the pending command."""
+        # Bind this task's own future before yielding. A newer command replaces
+        # self._pending_command_future before this task sees its cancellation,
+        # so resolving the attribute here would cancel the successor instead.
+        future = self._pending_command_future
         try:
             await asyncio.sleep(DEBOUNCE_INTERVAL)
 
             url = self._pending_command_url
-            future = self._pending_command_future
 
             if not url or not future or future.cancelled():
                 return
@@ -573,17 +576,17 @@ class OeloLight(LightEntity, RestoreEntity):
                         future.set_result(True)
 
         except asyncio.CancelledError:
-            if self._pending_command_future and not self._pending_command_future.done():
-                self._pending_command_future.cancel()
+            if future and not future.done():
+                future.cancel()
         except TimeoutError:
             _LOGGER.warning("Timeout sending command to Oelo controller")
-            if self._pending_command_future and not self._pending_command_future.done():
-                self._pending_command_future.set_result(False)
+            if future and not future.done():
+                future.set_result(False)
         except aiohttp.ClientError as err:
             _LOGGER.warning("Error sending command to Oelo controller: %s", err)
-            if self._pending_command_future and not self._pending_command_future.done():
-                self._pending_command_future.set_result(False)
+            if future and not future.done():
+                future.set_result(False)
         except Exception as err:  # noqa: BLE001
             _LOGGER.exception("Unexpected error sending command: %s", err)
-            if self._pending_command_future and not self._pending_command_future.done():
-                self._pending_command_future.set_result(False)
+            if future and not future.done():
+                future.set_result(False)

@@ -180,6 +180,36 @@ async def test_pending_command_does_not_hang_on_unload(
         pass
 
 
+async def test_superseding_command_is_still_sent(
+    hass: HomeAssistant, light_entity: str, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """Of two commands inside one debounce window, the newest is sent.
+
+    Regression: the superseded task's CancelledError handler cancelled
+    self._pending_command_future, which by then already pointed at the newer
+    command's future, so a slider drag sent nothing at all.
+    """
+    before = len(_sent_colors(aioclient_mock))
+
+    first = hass.async_create_task(
+        hass.services.async_call(
+            "light", "turn_on", {"entity_id": light_entity, "brightness": 100}, blocking=True
+        )
+    )
+    # Inside DEBOUNCE_INTERVAL, so the second call supersedes the first.
+    await asyncio.sleep(0.05)
+    second = hass.async_create_task(
+        hass.services.async_call(
+            "light", "turn_on", {"entity_id": light_entity, "brightness": 200}, blocking=True
+        )
+    )
+    await asyncio.wait_for(asyncio.gather(first, second), timeout=10)
+    await hass.async_block_till_done()
+
+    assert _sent_colors(aioclient_mock)[before:] == ["200,200,200"]
+    assert hass.states.get(light_entity).attributes[ATTR_BRIGHTNESS] == 200
+
+
 async def test_turn_off_sends_off_pattern(
     hass: HomeAssistant, light_entity: str, aioclient_mock: AiohttpClientMocker
 ) -> None:
